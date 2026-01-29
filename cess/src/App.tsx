@@ -1,6 +1,9 @@
-import { useChessGame, Board, GameInfo, PromotionModal } from './features/chess'
+import { useState } from 'react'
+import { useChessGame, Board, Board3D, GameInfo, PromotionModal } from './features/chess'
 
 function App() {
+  const [is3D, setIs3D] = useState(true)
+
   const {
     gameState,
     pendingPromotion,
@@ -19,6 +22,8 @@ function App() {
     showHint
   } = useChessGame()
 
+  const toggle3D = () => setIs3D(prev => !prev)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-900 via-stone-800 to-emerald-950 flex items-center justify-center p-4">
       <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 lg:gap-10">
@@ -35,11 +40,13 @@ function App() {
             botDifficulty={botDifficulty}
             canUndo={canUndo}
             canHint={canHint}
+            is3D={is3D}
             onReset={resetGame}
             onToggleBot={toggleBot}
             onDifficultyChange={setDifficulty}
             onUndo={undoMove}
             onHint={showHint}
+            onToggle3D={toggle3D}
           />
         </div>
 
@@ -47,14 +54,25 @@ function App() {
           <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 bg-clip-text text-transparent">
             Chess
           </h1>
-          <Board
-            board={gameState.board}
-            selectedPosition={gameState.selectedPosition}
-            validMoves={gameState.validMoves}
-            lastMove={gameState.lastMove}
-            hintMove={hintMove}
-            onSquareClick={selectSquare}
-          />
+          {is3D ? (
+            <Board3D
+              board={gameState.board}
+              selectedPosition={gameState.selectedPosition}
+              validMoves={gameState.validMoves}
+              lastMove={gameState.lastMove}
+              hintMove={hintMove}
+              onSquareClick={selectSquare}
+            />
+          ) : (
+            <Board
+              board={gameState.board}
+              selectedPosition={gameState.selectedPosition}
+              validMoves={gameState.validMoves}
+              lastMove={gameState.lastMove}
+              hintMove={hintMove}
+              onSquareClick={selectSquare}
+            />
+          )}
         </div>
       </div>
 

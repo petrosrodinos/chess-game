@@ -13,11 +13,13 @@ interface GameInfoProps {
   botDifficulty: BotDifficulty
   canUndo: boolean
   canHint: boolean
+  is3D: boolean
   onReset: () => void
   onToggleBot: () => void
   onDifficultyChange: (difficulty: BotDifficulty) => void
   onUndo: () => void
   onHint: () => void
+  onToggle3D: () => void
 }
 
 export const GameInfo = ({
@@ -32,11 +34,13 @@ export const GameInfo = ({
   botDifficulty,
   canUndo,
   canHint,
+  is3D,
   onReset,
   onToggleBot,
   onDifficultyChange,
   onUndo,
-  onHint
+  onHint,
+  onToggle3D
 }: GameInfoProps) => {
   const formatMove = (move: Move, index: number) => {
     const from = `${FILES[move.from.col]}${8 - move.from.row}`
@@ -149,6 +153,25 @@ export const GameInfo = ({
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-amber-200 mb-2">View Mode</h3>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-stone-300 text-sm">{is3D ? '3D Board' : '2D Board'}</span>
+          <button
+            onClick={onToggle3D}
+            className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
+              is3D ? 'bg-violet-600' : 'bg-stone-600'
+            }`}
+          >
+            <span
+              className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                is3D ? 'translate-x-8' : 'translate-x-1'
+              }`}
+            />
+          </button>
         </div>
       </div>
 
