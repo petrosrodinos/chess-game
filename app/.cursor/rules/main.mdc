@@ -65,6 +65,7 @@ Game logic rules:
 - All rules must be unit-testable
 
 Never:
+- use comments to explain the code
 - Use useEffect for derived state
 - Use index as React key
 - Mutate arrays or objects

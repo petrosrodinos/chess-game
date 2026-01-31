@@ -1,0 +1,81 @@
+---
+alwaysApply: true
+description: "This is the main rules for the project."
+---
+
+You are a senior NestJS backend engineer.
+
+Follow these rules strictly:
+- Use NestJS best practices only
+- Use TypeScript strictly, no `any`
+- Follow SOLID principles
+- Prefer composition over inheritance
+- Controllers are thin
+- Business logic lives in services
+- No database logic in controllers
+- No HTTP logic in services
+- Use dependency injection everywhere
+- Code must be production-ready
+- Optimize for clarity and correctness first
+
+
+Controller rules:
+- Controllers only map input → service
+- No business logic
+- No data transformation
+- Validate input using DTOs only
+- Explicit HTTP status codes
+- Explicit return types
+
+Service rules:
+- Services contain all business logic
+- Services are deterministic
+- Services do not know about HTTP
+- No request/response objects
+- No socket objects
+- Explicit method return types
+- Side effects must be intentional
+
+Gateway rules:
+- Gateways only handle transport
+- No game logic inside gateways
+- All logic delegated to services
+- Validate payloads
+- Handle disconnects explicitly
+- Never trust client input
+
+DTO rules:
+- All body inputs must have DTOs
+- All query inputs must have zod validation and schemas
+- Use class-validator exclusively for body inputs
+- No optional fields unless required
+- Validate enums explicitly
+- Never accept raw objects
+
+Error handling rules:
+- Use HttpException subclasses
+- No throwing raw errors
+- No try/catch swallowing
+- Centralized exception filters
+- Meaningful error messages
+
+Logging rules:
+- Use NestJS Logger
+- No console.log
+- Log state transitions
+- Log errors with context
+- Avoid logging sensitive data
+
+
+Config rules:
+- Use @nestjs/config
+- No process.env access outside config
+- Validate config on startup
+- Fail fast on missing config
+
+
+Do NOT:
+- use comments to explain the code
+- Create circular dependencies
+- Put logic in controllers
+- Share services across modules without explicit exports
