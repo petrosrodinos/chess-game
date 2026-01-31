@@ -1,0 +1,177 @@
+---
+description: "This is the rules for the board game Selinutes."
+alwaysApply: true
+---
+
+Board Game Rules – Setting Obstacles and Figures
+1. Game Boards and Obstacles
+
+The game board comes in three sizes:
+
+Small Board (12×12) has 18 obstacles: 2 Caves, 2 Trees, 2 Rocks, 4 Lakes, 3 Rivers, 3 Canyons, 2 MysteryBoxes.
+
+
+
+Medium Board (12×16) has 20 obstacles: 2 Caves, 3 Trees, 3 Rocks, 4 Lakes, 3 Rivers, 3 Canyons, 2 MysteryBoxes.
+
+Large Board (12×20) has 24 obstacles: 2 Caves, 3 Trees, 3 Rocks, 5 Lakes, 4 Rivers, 4 Canyons, 3 MysteryBoxes.
+
+Obstacle Rules:
+
+Cave: Any figure entering a cave can exit from any other cave on the board.
+
+Tree, Rock, River, Lake, Canyon: Movement restrictions vary by figure (see section 4).
+
+MysteryBox: Special interactive square with effects depending on game variant or player rules.
+
+2. Figures and Starting Positions
+
+Figures are arranged in three lines:
+
+Topline (12–20–24 units depending on board size): Ram-Tower, Chariot, Saboteur, Paladin, Vezier, Monarch, Duchess, Druid, Paladin, Saboteur, Chariot, Ram-Tower.
+
+Semi-Topline (11–19–23 units): 12 Hoplites.
+
+Semi-Bottomline (2 units): 12 Hoplites.
+
+Bottomline (1 unit): Ram-Tower, Chariot, Saboteur, Paladin, Vezier, Monarch, Duchess, Druid, Paladin, Saboteur, Chariot, Ram-Tower.
+
+3. Figures – Points Value
+
+Monarch: 210 points
+
+Duchess: 27 points
+
+Ram-Tower: 20 points
+
+Chariot: 16 points (Zompie Mode: 13)
+
+Paladin: 15 points (Zompie Mode: 12)
+
+Saboteur: 12 points (Zompie Mode: 9)
+
+Druid/Necromancer: 13 points
+
+Vezier/Warlock: 11 points
+
+Hoplite: 3 points
+
+Notes:
+
+Necromancer can revive units (Ram, Chariot, Bomber, Paladin) if Monarch, Duchess, and Warlock are in their original positions.
+
+Revived units may have reduced attack capabilities.
+
+Zompie Mode applies a weaker point value after revival.
+
+4. Figures – Movement, Attack, and Abilities
+
+Hoplite:
+
+Moves 3 steps forward on the first move, then 2 steps.
+
+Shoots sideways 1 step.
+
+Can pass through caves.
+
+Cannot pass through rivers, lakes, or canyons.
+
+Ram-Tower:
+
+Moves in a cross (orthogonal) pattern any number of steps.
+
+Shoots up to 5 steps in a cross pattern.
+
+Cannot pass through obstacles unless specified.
+
+Chariot:
+
+Moves in L-shaped corners (2-1, 1-2, 2-2, 3-1, 1-3 steps).
+
+Can pass over other figures.
+
+Units killed by Chariot cannot be revived until Chariot is destroyed.
+
+Shoots only in 4-step corner range.
+
+Can pass through rivers (2 steps wide).
+
+Cannot pass through lake, canyon, or cave.
+
+Bomber:
+
+Moves 1 or 2 steps in cross or X patterns.
+
+Cannot shoot or attack directly.
+
+Placing Bomber triggers explosives in a 2-step radius affecting same-type figures.
+
+Can pass through rivers (1 step wide), caves, and canyons.
+
+Cannot pass through lakes.
+
+Paladin:
+
+Moves sideways any number of steps.
+
+Shoots up to 3 steps sideways.
+
+Can pass through rivers (1 step wide), caves, and canyons.
+
+Cannot pass through lakes.
+
+Warlock (Vezier):
+
+Moves in 2-step corner patterns.
+
+Can pass over figures in its path.
+
+Can swap positions with any Hoplite or the Monarch.
+
+Can pass through lakes and caves.
+
+Cannot pass through rivers or canyons.
+
+Monarch:
+
+Moves 1 step in any direction.
+
+Shoots 1 step in any direction.
+
+Can pass through caves.
+
+Cannot pass through rivers, lakes, or canyons.
+
+Duchess:
+
+Moves in any direction.
+
+Shoots up to 9 steps in any direction.
+
+Can pass through rivers.
+
+Cannot pass through lakes, canyons, or caves.
+
+Necromancer (Druid):
+
+Moves in any direction.
+
+Shoots 1 step normally, or freeze-stuns up to 8 steps (reduced by 2 per revival).
+
+Can revive Ram, Chariot, Bomber, or Paladin if Monarch, Duchess, and Warlock are in original positions.
+
+Revived units may have limited attack range; Bomber can attack normally as Zompie.
+
+Can pass through lakes and caves.
+
+Cannot pass through rivers or canyons.
+
+5. Special Rules
+
+Caves: Entering a cave allows exit from any other cave on the board.
+
+Explosions: Bomber affects same-type figures in a 2-step radius.
+
+Revival: Necromancer can revive certain units; revived units may have limited abilities.
+
+Zompie Mode: Some figures have reduced points after revival.
