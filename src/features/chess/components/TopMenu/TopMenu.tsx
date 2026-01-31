@@ -45,21 +45,15 @@ export const TopMenu = () => {
 
         <div className="flex flex-col items-center gap-1">
           <span className="text-xs font-medium text-amber-200">Size</span>
-          <div className="flex gap-1">
-            {[BoardSizeKeys.SMALL, BoardSizeKeys.MEDIUM, BoardSizeKeys.LARGE].map((sizeKey) => (
-              <button
-                key={sizeKey}
-                onClick={() => handleBoardSizeChange(sizeKey)}
-                className={`py-1 px-2 text-xs font-medium rounded transition-all duration-200 ${
-                  boardSizeKey === sizeKey
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
-                }`}
-              >
-                {sizeKey}
-              </button>
-            ))}
-          </div>
+          <select
+            value={boardSizeKey}
+            onChange={(e) => handleBoardSizeChange(e.target.value as BoardSizeKey)}
+            className="bg-stone-700 text-amber-100 text-xs rounded px-2 py-1.5 border border-stone-600 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+          >
+            <option value={BoardSizeKeys.SMALL}>Small (12×12)</option>
+            <option value={BoardSizeKeys.MEDIUM}>Medium (12×16)</option>
+            <option value={BoardSizeKeys.LARGE}>Large (12×20)</option>
+          </select>
         </div>
 
         <div className="flex flex-col items-center gap-1">
