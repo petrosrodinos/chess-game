@@ -1,20 +1,31 @@
-export const PieceColors = {
+export const PlayerColors = {
   WHITE: 'white',
   BLACK: 'black'
 } as const
 
-export type PieceColor = typeof PieceColors[keyof typeof PieceColors]
+export type PlayerColor = typeof PlayerColors[keyof typeof PlayerColors]
 
 export const PieceTypes = {
-  KING: 'king',
-  QUEEN: 'queen',
-  ROOK: 'rook',
-  BISHOP: 'bishop',
-  KNIGHT: 'knight',
-  PAWN: 'pawn'
+  HOPLITE: 'hoplite',
+  RAM_TOWER: 'ramTower',
+  CHARIOT: 'chariot',
+  BOMBER: 'bomber',
+  PALADIN: 'paladin',
+  WARLOCK: 'warlock',
+  MONARCH: 'monarch',
+  DUCHESS: 'duchess',
+  NECROMANCER: 'necromancer'
 } as const
 
 export type PieceType = typeof PieceTypes[keyof typeof PieceTypes]
+
+export const MovePatterns = {
+  ANY: 'any',
+  SIDEWAYS: 'sideways',
+  CROSS: 'cross'
+} as const
+
+export type MovePattern = typeof MovePatterns[keyof typeof MovePatterns]
 
 export const ObstacleTypes = {
   CAVE: 'cave',
@@ -44,10 +55,20 @@ export const BoardSizeKeys = {
 
 export type BoardSizeKey = typeof BoardSizeKeys[keyof typeof BoardSizeKeys]
 
+export interface PieceRules {
+  move: MovePattern | number[][] | number[]
+  attackRange: number
+  canPass: ObstacleType[]
+  canJumpPieces?: boolean
+  points: number
+  zombiePoints?: number
+}
+
 export interface Piece {
   type: PieceType
-  color: PieceColor
+  color: PlayerColor
   hasMoved?: boolean
+  isZombie?: boolean
 }
 
 export interface Obstacle {
@@ -68,8 +89,8 @@ export type BoardSize = { rows: number; cols: number }
 
 export const BOARD_SIZES: Record<BoardSizeKey, BoardSize> = {
   [BoardSizeKeys.SMALL]: { rows: 12, cols: 12 },
-  [BoardSizeKeys.MEDIUM]: { rows: 16, cols: 12 },
-  [BoardSizeKeys.LARGE]: { rows: 20, cols: 12 }
+  [BoardSizeKeys.MEDIUM]: { rows: 12, cols: 16 },
+  [BoardSizeKeys.LARGE]: { rows: 12, cols: 20 }
 } as const
 
 export type Board = CellContent[][]
@@ -84,26 +105,25 @@ export interface Move {
   to: Position
   piece: Piece
   captured?: Piece
-  isEnPassant?: boolean
-  isCastling?: boolean
-  promotion?: PieceType
+  isAttack?: boolean
 }
 
 export interface GameState {
   board: Board
   boardSize: BoardSize
-  currentPlayer: PieceColor
+  currentPlayer: PlayerColor
   selectedPosition: Position | null
   validMoves: Position[]
-  isCheck: boolean
-  isCheckmate: boolean
-  isStalemate: boolean
+  validAttacks: Position[]
   moveHistory: Move[]
   capturedPieces: { white: Piece[]; black: Piece[] }
   lastMove: Move | null
+  gameOver: boolean
+  winner: PlayerColor | null
 }
 
 export interface HintMove {
   from: Position
   to: Position
+  isAttack?: boolean
 }

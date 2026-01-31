@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import type { Board as BoardType, Position, Move, HintMove, BoardSize } from '../../types'
 import { isPiece, isObstacle } from '../../types'
-import { ChessPiece3D } from './ChessPiece3D'
+import { Piece3D } from './Piece3D'
 import { BoardSquare3D } from './BoardSquare3D'
 import { Obstacle3D } from './Obstacle3D'
 
@@ -12,16 +12,18 @@ interface Board3DProps {
   boardSize: BoardSize
   selectedPosition: Position | null
   validMoves: Position[]
+  validAttacks: Position[]
   lastMove: Move | null
   hintMove: HintMove | null
   onSquareClick: (pos: Position) => void
 }
 
-const ChessScene = ({
+const GameScene = ({
   board,
   boardSize,
   selectedPosition,
   validMoves,
+  validAttacks,
   lastMove,
   hintMove,
   onSquareClick
@@ -41,13 +43,21 @@ const ChessScene = ({
   const isValidMove = (row: number, col: number) =>
     validMoves.some(m => m.row === row && m.col === col)
 
+  const isValidAttack = (row: number, col: number) =>
+    validAttacks.some(a => a.row === row && a.col === col)
+
   const isLastMove = (row: number, col: number) =>
     lastMove !== null &&
     ((lastMove.from.row === row && lastMove.from.col === col) ||
       (lastMove.to.row === row && lastMove.to.col === col))
 
   const isHintSquare = (row: number, col: number) =>
-    hintMove !== null &&
+    hintMove !== null && !hintMove.isAttack &&
+    ((hintMove.from.row === row && hintMove.from.col === col) ||
+      (hintMove.to.row === row && hintMove.to.col === col))
+
+  const isHintAttackSquare = (row: number, col: number) =>
+    hintMove !== null && hintMove.isAttack &&
     ((hintMove.from.row === row && hintMove.from.col === col) ||
       (hintMove.to.row === row && hintMove.to.col === col))
 
@@ -91,8 +101,10 @@ const ChessScene = ({
               position={[x, 0, z]}
               isLight={isLight}
               isValidMove={isValidMove(rowIndex, colIndex)}
+              isValidAttack={isValidAttack(rowIndex, colIndex)}
               isLastMove={isLastMove(rowIndex, colIndex)}
               isHint={isHintSquare(rowIndex, colIndex)}
+              isHintAttack={isHintAttackSquare(rowIndex, colIndex)}
               isObstacle={hasObstacle || false}
               onClick={() => onSquareClick({ row: rowIndex, col: colIndex })}
             />
@@ -118,13 +130,14 @@ const ChessScene = ({
 
           if (isPiece(cell)) {
             return (
-              <ChessPiece3D
+              <Piece3D
                 key={`piece-${rowIndex}-${colIndex}`}
                 type={cell.type}
                 color={cell.color}
                 position={[x, 0.1, z]}
                 isSelected={isSelected(rowIndex, colIndex)}
                 isHint={isHintPiece(rowIndex, colIndex)}
+                isTargeted={isValidAttack(rowIndex, colIndex)}
                 onClick={() => onSquareClick({ row: rowIndex, col: colIndex })}
               />
             )
@@ -153,7 +166,7 @@ export const Board3D = (props: Board3DProps) => {
       >
         <color attach="background" args={['#1f2937']} />
         <Suspense fallback={null}>
-          <ChessScene {...props} />
+          <GameScene {...props} />
         </Suspense>
       </Canvas>
     </div>

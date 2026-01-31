@@ -1,12 +1,11 @@
-import type { PieceColor, Piece, Move, BotDifficulty, BoardSizeKey } from '../../types'
-import { BOARD_SIZES, PieceColors, PieceTypes, BotDifficulties, BoardSizeKeys } from '../../types'
-import { generateFiles, PIECE_SYMBOLS } from '../../constants'
+import type { PlayerColor, Piece, Move, BotDifficulty, BoardSizeKey } from '../../types'
+import { BOARD_SIZES, PlayerColors, PieceTypes, BotDifficulties, BoardSizeKeys } from '../../types'
+import { generateFiles, PIECE_SYMBOLS, PIECE_RULES } from '../../constants'
 
 interface GameInfoProps {
-  currentPlayer: PieceColor
-  isCheck: boolean
-  isCheckmate: boolean
-  isStalemate: boolean
+  currentPlayer: PlayerColor
+  gameOver: boolean
+  winner: PlayerColor | null
   capturedPieces: { white: Piece[]; black: Piece[] }
   moveHistory: Move[]
   botEnabled: boolean
@@ -27,9 +26,8 @@ interface GameInfoProps {
 
 export const GameInfo = ({
   currentPlayer,
-  isCheck,
-  isCheckmate,
-  isStalemate,
+  gameOver,
+  winner,
   capturedPieces,
   moveHistory,
   botEnabled,
@@ -50,30 +48,50 @@ export const GameInfo = ({
   const boardSize = BOARD_SIZES[boardSizeKey]
   const files = generateFiles(boardSize.cols)
 
-  const formatMove = (move: Move, index: number) => {
+  const formatMove = (move: Move, _index: number) => {
     const from = `${files[move.from.col]}${boardSize.rows - move.from.row}`
     const to = `${files[move.to.col]}${boardSize.rows - move.to.row}`
-    const piece = move.piece.type === PieceTypes.PAWN ? '' : move.piece.type[0].toUpperCase()
-    const capture = move.captured ? 'x' : ''
-    const check = index === moveHistory.length - 1 && isCheck ? '+' : ''
-    const mate = index === moveHistory.length - 1 && isCheckmate ? '#' : ''
+    const piece = move.piece.type === PieceTypes.HOPLITE ? '' : move.piece.type[0].toUpperCase()
+    const action = move.isAttack ? '⚔' : (move.captured ? 'x' : '-')
     
-    return `${piece}${from}${capture}${to}${check || mate}`
+    return `${piece}${from}${action}${to}`
   }
 
   const getStatusText = () => {
-    if (isCheckmate) return `Checkmate! ${currentPlayer === PieceColors.WHITE ? 'Black' : 'White'} wins!`
-    if (isStalemate) return 'Stalemate! Game is a draw.'
-    if (isCheck) return `${currentPlayer === PieceColors.WHITE ? 'White' : 'Black'} is in check!`
-    return `${currentPlayer === PieceColors.WHITE ? 'White' : 'Black'}'s turn`
+    if (gameOver && winner) {
+      return `Victory! ${winner === PlayerColors.WHITE ? 'White' : 'Black'} wins!`
+    }
+    if (gameOver) {
+      return 'Game Over!'
+    }
+    return `${currentPlayer === PlayerColors.WHITE ? 'White' : 'Black'}'s turn`
   }
 
-  const pieceOrder = [PieceTypes.QUEEN, PieceTypes.ROOK, PieceTypes.BISHOP, PieceTypes.KNIGHT, PieceTypes.PAWN] as const
+  const pieceOrder = [
+    PieceTypes.MONARCH,
+    PieceTypes.DUCHESS,
+    PieceTypes.RAM_TOWER,
+    PieceTypes.CHARIOT,
+    PieceTypes.PALADIN,
+    PieceTypes.NECROMANCER,
+    PieceTypes.WARLOCK,
+    PieceTypes.BOMBER,
+    PieceTypes.HOPLITE
+  ] as const
 
   const sortedCaptured = (pieces: Piece[]) => {
-    return [...pieces].sort((a, b) => 
-      pieceOrder.indexOf(a.type as typeof pieceOrder[number]) - pieceOrder.indexOf(b.type as typeof pieceOrder[number])
-    )
+    return [...pieces].sort((a, b) => {
+      const aIndex = pieceOrder.indexOf(a.type as typeof pieceOrder[number])
+      const bIndex = pieceOrder.indexOf(b.type as typeof pieceOrder[number])
+      return aIndex - bIndex
+    })
+  }
+
+  const getTotalPoints = (pieces: Piece[]) => {
+    return pieces.reduce((total, piece) => {
+      const rules = PIECE_RULES[piece.type]
+      return total + (piece.isZombie && rules.zombiePoints ? rules.zombiePoints : rules.points)
+    }, 0)
   }
 
   const boardSizeOptions: BoardSizeKey[] = [BoardSizeKeys.SMALL, BoardSizeKeys.MEDIUM, BoardSizeKeys.LARGE]
@@ -84,12 +102,8 @@ export const GameInfo = ({
         <h2 className="text-lg font-semibold text-amber-100 mb-2">Game Status</h2>
         <div
           className={`text-center py-2 px-4 rounded-lg font-medium ${
-            isCheckmate
+            gameOver
               ? 'bg-rose-600 text-white'
-              : isStalemate
-              ? 'bg-amber-600 text-white'
-              : isCheck
-              ? 'bg-orange-500 text-white animate-pulse'
               : 'bg-emerald-600 text-white'
           }`}
         >
@@ -121,7 +135,7 @@ export const GameInfo = ({
         <div className="flex items-center gap-2">
           <div
             className={`w-6 h-6 rounded-full border-2 ${
-              currentPlayer === PieceColors.WHITE
+              currentPlayer === PlayerColors.WHITE
                 ? 'bg-amber-50 border-amber-200'
                 : 'bg-stone-900 border-stone-600'
             }`}
@@ -134,20 +148,20 @@ export const GameInfo = ({
         <h3 className="text-sm font-medium text-amber-200 mb-2">Captured Pieces</h3>
         <div className="space-y-1">
           <div className="flex items-center gap-1 min-h-[28px]">
-            <span className="text-xs text-stone-400 w-12">White:</span>
+            <span className="text-xs text-stone-400 w-16">White ({getTotalPoints(capturedPieces.white)}pts):</span>
             <div className="flex flex-wrap gap-0.5">
               {sortedCaptured(capturedPieces.white).map((piece, i) => (
-                <span key={i} className="text-lg text-amber-50">
+                <span key={i} className="text-lg">
                   {PIECE_SYMBOLS[piece.color][piece.type]}
                 </span>
               ))}
             </div>
           </div>
           <div className="flex items-center gap-1 min-h-[28px]">
-            <span className="text-xs text-stone-400 w-12">Black:</span>
+            <span className="text-xs text-stone-400 w-16">Black ({getTotalPoints(capturedPieces.black)}pts):</span>
             <div className="flex flex-wrap gap-0.5">
               {sortedCaptured(capturedPieces.black).map((piece, i) => (
-                <span key={i} className="text-lg text-stone-900">
+                <span key={i} className="text-lg">
                   {PIECE_SYMBOLS[piece.color][piece.type]}
                 </span>
               ))}
@@ -158,11 +172,11 @@ export const GameInfo = ({
 
       <div className="mb-4">
         <h3 className="text-sm font-medium text-amber-200 mb-2">
-          Move History ({Math.ceil(moveHistory.length / 2)} moves)
+          Action History ({moveHistory.length} actions)
         </h3>
         <div className="bg-stone-900/50 rounded-lg p-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-stone-600">
           {moveHistory.length === 0 ? (
-            <p className="text-stone-500 text-sm text-center py-2">No moves yet</p>
+            <p className="text-stone-500 text-sm text-center py-2">No actions yet</p>
           ) : (
             <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm font-mono">
               {moveHistory.map((move, index) => (
@@ -174,9 +188,7 @@ export const GameInfo = ({
                       : 'text-stone-300'
                   }`}
                 >
-                  {index % 2 === 0 && (
-                    <span className="text-stone-500 mr-1">{Math.floor(index / 2) + 1}.</span>
-                  )}
+                  <span className="text-stone-500 mr-1">{index + 1}.</span>
                   {formatMove(move, index)}
                 </div>
               ))}

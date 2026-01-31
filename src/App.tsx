@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useChessGame, Board, Board3D, GameInfo, PromotionModal } from './features/chess'
+import { useGame, Board, Board3D, GameInfo } from './features/chess'
 import type { BoardSizeKey } from './features/chess/types'
 
 function App() {
@@ -8,7 +8,6 @@ function App() {
   const {
     gameState,
     boardSizeKey,
-    pendingPromotion,
     botEnabled,
     botThinking,
     botDifficulty,
@@ -16,13 +15,12 @@ function App() {
     hintMove,
     canHint,
     selectSquare,
-    promotePawn,
     resetGame,
     toggleBot,
     setDifficulty,
     undoMove,
     showHint
-  } = useChessGame()
+  } = useGame()
 
   const toggle3D = () => setIs3D(prev => !prev)
 
@@ -36,9 +34,8 @@ function App() {
         <div className="order-2 lg:order-1">
           <GameInfo
             currentPlayer={gameState.currentPlayer}
-            isCheck={gameState.isCheck}
-            isCheckmate={gameState.isCheckmate}
-            isStalemate={gameState.isStalemate}
+            gameOver={gameState.gameOver}
+            winner={gameState.winner}
             capturedPieces={gameState.capturedPieces}
             moveHistory={gameState.moveHistory}
             botEnabled={botEnabled}
@@ -60,7 +57,7 @@ function App() {
 
         <div className="order-1 lg:order-2">
           <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 bg-clip-text text-transparent">
-            Selinutes Chess
+            Fantasy Tactics
           </h1>
           {is3D ? (
             <Board3D
@@ -68,6 +65,7 @@ function App() {
               boardSize={gameState.boardSize}
               selectedPosition={gameState.selectedPosition}
               validMoves={gameState.validMoves}
+              validAttacks={gameState.validAttacks}
               lastMove={gameState.lastMove}
               hintMove={hintMove}
               onSquareClick={selectSquare}
@@ -78,6 +76,7 @@ function App() {
               boardSize={gameState.boardSize}
               selectedPosition={gameState.selectedPosition}
               validMoves={gameState.validMoves}
+              validAttacks={gameState.validAttacks}
               lastMove={gameState.lastMove}
               hintMove={hintMove}
               onSquareClick={selectSquare}
@@ -85,13 +84,6 @@ function App() {
           )}
         </div>
       </div>
-
-      {pendingPromotion && (
-        <PromotionModal
-          color={gameState.currentPlayer}
-          onSelect={promotePawn}
-        />
-      )}
     </div>
   )
 }

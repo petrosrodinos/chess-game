@@ -1,5 +1,5 @@
 import type { Piece as PieceType } from '../../types'
-import { PieceColors } from '../../types'
+import { PlayerColors } from '../../types'
 import { PIECE_SYMBOLS } from '../../constants'
 
 interface PieceProps {
@@ -9,10 +9,12 @@ interface PieceProps {
 export const Piece = ({ piece }: PieceProps) => {
   return (
     <span
-      className={`text-3xl md:text-4xl select-none drop-shadow-lg transition-transform duration-150 hover:scale-110 ${
-        piece.color === PieceColors.WHITE ? 'text-amber-50' : 'text-stone-900'
-      }`}
-      style={{ textShadow: piece.color === PieceColors.WHITE ? '1px 1px 2px rgba(0,0,0,0.5)' : '1px 1px 2px rgba(255,255,255,0.3)' }}
+      className={`text-2xl md:text-3xl select-none drop-shadow-lg transition-transform duration-150 hover:scale-110 ${
+        piece.color === PlayerColors.WHITE ? '' : 'grayscale-[30%]'
+      } ${piece.isZombie ? 'opacity-60' : ''}`}
+      style={{ 
+        filter: piece.color === PlayerColors.BLACK ? 'brightness(0.7) saturate(0.8)' : undefined
+      }}
     >
       {PIECE_SYMBOLS[piece.color][piece.type]}
     </span>

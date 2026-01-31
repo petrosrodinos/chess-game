@@ -7,6 +7,7 @@ interface BoardProps {
   boardSize: BoardSize
   selectedPosition: Position | null
   validMoves: Position[]
+  validAttacks: Position[]
   lastMove: Move | null
   hintMove: HintMove | null
   onSquareClick: (pos: Position) => void
@@ -17,6 +18,7 @@ export const Board = ({
   boardSize,
   selectedPosition,
   validMoves,
+  validAttacks,
   lastMove,
   hintMove,
   onSquareClick
@@ -30,13 +32,21 @@ export const Board = ({
   const isValidMove = (row: number, col: number) =>
     validMoves.some(m => m.row === row && m.col === col)
 
+  const isValidAttack = (row: number, col: number) =>
+    validAttacks.some(a => a.row === row && a.col === col)
+
   const isLastMove = (row: number, col: number) =>
     lastMove !== null &&
     ((lastMove.from.row === row && lastMove.from.col === col) ||
       (lastMove.to.row === row && lastMove.to.col === col))
 
   const isHint = (row: number, col: number) =>
-    hintMove !== null &&
+    hintMove !== null && !hintMove.isAttack &&
+    ((hintMove.from.row === row && hintMove.from.col === col) ||
+      (hintMove.to.row === row && hintMove.to.col === col))
+
+  const isHintAttack = (row: number, col: number) =>
+    hintMove !== null && hintMove.isAttack &&
     ((hintMove.from.row === row && hintMove.from.col === col) ||
       (hintMove.to.row === row && hintMove.to.col === col))
 
@@ -76,8 +86,10 @@ export const Board = ({
                   position={{ row: rowIndex, col: colIndex }}
                   isSelected={isSelected(rowIndex, colIndex)}
                   isValidMove={isValidMove(rowIndex, colIndex)}
+                  isValidAttack={isValidAttack(rowIndex, colIndex)}
                   isLastMove={isLastMove(rowIndex, colIndex)}
                   isHint={isHint(rowIndex, colIndex)}
+                  isHintAttack={isHintAttack(rowIndex, colIndex)}
                   onClick={() => onSquareClick({ row: rowIndex, col: colIndex })}
                 />
               ))}

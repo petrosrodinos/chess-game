@@ -48,14 +48,14 @@ export const useGame = (initialBoardSizeKey: BoardSizeKey = BoardSizeKeys.SMALL)
                 winner: nextPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
             }
         }
-
+        
         if (!hasLegalMoves(board, nextPlayer, gameState.boardSize)) {
             return {
                 gameOver: true,
                 winner: nextPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
             }
         }
-
+        
         return { gameOver: false, winner: null }
     }, [gameState.boardSize])
 
@@ -192,7 +192,7 @@ export const useGame = (initialBoardSizeKey: BoardSizeKey = BoardSizeKeys.SMALL)
     const resetGame = useCallback((newBoardSizeKey?: BoardSizeKey) => {
         const sizeKey = newBoardSizeKey || boardSizeKey
         const newBoardSize = BOARD_SIZES[sizeKey] || DEFAULT_BOARD_SIZE
-
+        
         if (newBoardSizeKey) {
             setBoardSizeKey(newBoardSizeKey)
         }

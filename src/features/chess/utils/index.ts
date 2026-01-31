@@ -1,11 +1,23 @@
-export { createInitialBoard, cloneBoard, isInBounds, isSquareBlockedByObstacle, getCellContent } from './boardUtils'
+export {
+  createInitialBoard,
+  cloneBoard,
+  isInBounds,
+  isSquareBlockedByObstacle,
+  getCellContent,
+  findPiecePositions,
+  findAllCaves,
+  movePiece,
+  attackPiece
+} from './boardUtils'
 export {
   getPieceMoves,
   getValidMoves,
+  getValidAttacks,
   makeMove,
-  isInCheck,
   hasLegalMoves,
-  findKing,
-  isSquareUnderAttack
+  findMonarch,
+  isMonarchCaptured,
+  isValidMove,
+  canAttack
 } from './moveUtils'
 export { getBotMove, getHintMove } from './botUtils'

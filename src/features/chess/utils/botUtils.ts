@@ -1,7 +1,7 @@
 import type { Board, Position, Move, BotDifficulty, HintMove, BoardSize } from '../types'
-import { isPiece, PieceColors, PieceTypes, BotDifficulties } from '../types'
-import { PIECE_VALUES } from '../constants'
-import { getValidMoves, makeMove, isInCheck } from './moveUtils'
+import { isPiece, PlayerColors, BotDifficulties } from '../types'
+import { PIECE_RULES } from '../constants'
+import { getValidMoves, getValidAttacks, makeMove } from './moveUtils'
 
 const evaluateBoard = (board: Board): number => {
   let score = 0
@@ -12,9 +12,11 @@ const evaluateBoard = (board: Board): number => {
     for (let col = 0; col < cols; col++) {
       const cell = board[row][col]
       if (cell && isPiece(cell)) {
-        const value = PIECE_VALUES[cell.type]
+        const rules = PIECE_RULES[cell.type]
+        const value = cell.isZombie && rules.zombiePoints ? rules.zombiePoints : rules.points
         const centerBonus = getCenterBonus(row, col, rows, cols, cell.type)
-        if (cell.color === PieceColors.BLACK) {
+        
+        if (cell.color === PlayerColors.BLACK) {
           score += value + centerBonus
         } else {
           score -= value + centerBonus
@@ -32,8 +34,38 @@ const getCenterBonus = (row: number, col: number, rows: number, cols: number, pi
   const colDist = Math.abs(col - centerCol) / centerCol
   const distFromCenter = (rowDist + colDist) / 2
   
-  const bonusMultiplier = pieceType === PieceTypes.KING ? -10 : 20
+  const rules = PIECE_RULES[pieceType]
+  const bonusMultiplier = rules.points > 100 ? -5 : 10
   return Math.round((1 - distFromCenter) * bonusMultiplier)
+}
+
+const getAllMovesAndAttacks = (
+  board: Board,
+  color: typeof PlayerColors[keyof typeof PlayerColors],
+  boardSize: BoardSize
+): { from: Position; to: Position; isAttack: boolean }[] => {
+  const allActions: { from: Position; to: Position; isAttack: boolean }[] = []
+  const rows = board.length
+  const cols = board[0].length
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const cell = board[row][col]
+      if (cell && isPiece(cell) && cell.color === color) {
+        const moves = getValidMoves(board, { row, col }, boardSize)
+        for (const to of moves) {
+          allActions.push({ from: { row, col }, to, isAttack: false })
+        }
+        
+        const attacks = getValidAttacks(board, { row, col }, boardSize)
+        for (const to of attacks) {
+          allActions.push({ from: { row, col }, to, isAttack: true })
+        }
+      }
+    }
+  }
+
+  return allActions
 }
 
 const minimax = (
@@ -42,69 +74,74 @@ const minimax = (
   alpha: number,
   beta: number,
   isMaximizing: boolean,
-  lastMove: Move | null,
   boardSize: BoardSize
 ): number => {
   if (depth === 0) {
     return evaluateBoard(board)
   }
 
-  const color = isMaximizing ? PieceColors.BLACK : PieceColors.WHITE
+  const color = isMaximizing ? PlayerColors.BLACK : PlayerColors.WHITE
   let bestScore = isMaximizing ? -Infinity : Infinity
-  const rows = board.length
-  const cols = board[0].length
 
-  outer: for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const cell = board[row][col]
-      if (cell && isPiece(cell) && cell.color === color) {
-        const moves = getValidMoves(board, { row, col }, lastMove, boardSize)
-        for (const move of moves) {
-          const { newBoard, move: newMove } = makeMove(board, { row, col }, move, lastMove, boardSize)
-          const score = minimax(newBoard, depth - 1, alpha, beta, !isMaximizing, newMove, boardSize)
-
-          if (isMaximizing) {
-            bestScore = Math.max(bestScore, score)
-            alpha = Math.max(alpha, score)
-          } else {
-            bestScore = Math.min(bestScore, score)
-            beta = Math.min(beta, score)
-          }
-
-          if (beta <= alpha) break outer
-        }
-      }
-    }
+  const actions = getAllMovesAndAttacks(board, color, boardSize)
+  
+  if (actions.length === 0) {
+    return evaluateBoard(board)
   }
 
-  return bestScore === -Infinity || bestScore === Infinity ? evaluateBoard(board) : bestScore
+  for (const action of actions) {
+    const { newBoard } = makeMove(board, action.from, action.to, boardSize, action.isAttack)
+    const score = minimax(newBoard, depth - 1, alpha, beta, !isMaximizing, boardSize)
+
+    if (isMaximizing) {
+      bestScore = Math.max(bestScore, score)
+      alpha = Math.max(alpha, score)
+    } else {
+      bestScore = Math.min(bestScore, score)
+      beta = Math.min(beta, score)
+    }
+
+    if (beta <= alpha) break
+  }
+
+  return bestScore
 }
 
-const evaluateMoveSimple = (board: Board, from: Position, to: Position, lastMove: Move | null, boardSize: BoardSize): number => {
-  const { newBoard, move } = makeMove(board, from, to, lastMove, boardSize)
+const evaluateMoveSimple = (
+  board: Board,
+  from: Position,
+  to: Position,
+  boardSize: BoardSize,
+  isAttack: boolean
+): number => {
+  const { newBoard, move } = makeMove(board, from, to, boardSize, isAttack)
   let score = Math.random() * 10
 
   if (move.captured) {
-    score += PIECE_VALUES[move.captured.type]
+    const capturedRules = PIECE_RULES[move.captured.type]
+    score += capturedRules.points * 2
   }
 
-  if (isInCheck(newBoard, PieceColors.WHITE, boardSize)) {
-    score += 30
+  if (isAttack) {
+    score += 20
   }
 
   return score
 }
 
-const evaluateMoveMedium = (board: Board, from: Position, to: Position, lastMove: Move | null, boardSize: BoardSize): number => {
-  const { newBoard, move } = makeMove(board, from, to, lastMove, boardSize)
+const evaluateMoveMedium = (
+  board: Board,
+  from: Position,
+  to: Position,
+  boardSize: BoardSize,
+  isAttack: boolean
+): number => {
+  const { newBoard, move } = makeMove(board, from, to, boardSize, isAttack)
   let score = 0
 
   if (move.captured) {
-    score += PIECE_VALUES[move.captured.type] * 10
-  }
-
-  if (isInCheck(newBoard, PieceColors.WHITE, boardSize)) {
-    score += 50
+    const capturedRules = PIECE_RULES[move.captured.type]
+    score += capturedRules.points * 10
   }
 
   const rows = board.length
@@ -121,17 +158,20 @@ const evaluateMoveMedium = (board: Board, from: Position, to: Position, lastMove
   return score
 }
 
-const evaluateMoveHard = (board: Board, from: Position, to: Position, lastMove: Move | null, boardSize: BoardSize): number => {
-  const { newBoard, move: newMove } = makeMove(board, from, to, lastMove, boardSize)
+const evaluateMoveHard = (
+  board: Board,
+  from: Position,
+  to: Position,
+  boardSize: BoardSize,
+  isAttack: boolean
+): number => {
+  const { newBoard, move } = makeMove(board, from, to, boardSize, isAttack)
   
-  let score = minimax(newBoard, 2, -Infinity, Infinity, false, newMove, boardSize)
+  let score = minimax(newBoard, 2, -Infinity, Infinity, false, boardSize)
 
-  if (isInCheck(newBoard, PieceColors.WHITE, boardSize)) {
-    score += 50
-  }
-
-  if (newMove.captured) {
-    score += PIECE_VALUES[newMove.captured.type] * 0.1
+  if (move.captured) {
+    const capturedRules = PIECE_RULES[move.captured.type]
+    score += capturedRules.points * 0.1
   }
 
   return score
@@ -143,90 +183,72 @@ export const getBotMove = (
   difficulty: BotDifficulty,
   boardSize: BoardSize
 ): HintMove | null => {
-  const allMoves: { from: Position; to: Position; score: number }[] = []
-  const rows = board.length
-  const cols = board[0].length
+  const allActions = getAllMovesAndAttacks(board, PlayerColors.BLACK, boardSize)
 
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const cell = board[row][col]
-      if (cell && isPiece(cell) && cell.color === PieceColors.BLACK) {
-        const moves = getValidMoves(board, { row, col }, lastMove, boardSize)
-        for (const to of moves) {
-          let score: number
-          switch (difficulty) {
-            case BotDifficulties.EASY:
-              score = evaluateMoveSimple(board, { row, col }, to, lastMove, boardSize)
-              break
-            case BotDifficulties.MEDIUM:
-              score = evaluateMoveMedium(board, { row, col }, to, lastMove, boardSize)
-              break
-            case BotDifficulties.HARD:
-              score = evaluateMoveHard(board, { row, col }, to, lastMove, boardSize)
-              break
-          }
-          allMoves.push({ from: { row, col }, to, score })
-        }
-      }
-    }
-  }
-
-  if (allMoves.length === 0) {
+  if (allActions.length === 0) {
     return null
   }
 
-  allMoves.sort((a, b) => b.score - a.score)
+  const scoredActions = allActions.map(action => {
+    let score: number
+    switch (difficulty) {
+      case BotDifficulties.EASY:
+        score = evaluateMoveSimple(board, action.from, action.to, boardSize, action.isAttack)
+        break
+      case BotDifficulties.MEDIUM:
+        score = evaluateMoveMedium(board, action.from, action.to, boardSize, action.isAttack)
+        break
+      case BotDifficulties.HARD:
+        score = evaluateMoveHard(board, action.from, action.to, boardSize, action.isAttack)
+        break
+    }
+    return { ...action, score }
+  })
+
+  scoredActions.sort((a, b) => b.score - a.score)
 
   let selectedIndex = 0
   if (difficulty === BotDifficulties.EASY) {
-    const range = Math.min(5, allMoves.length)
+    const range = Math.min(5, scoredActions.length)
     selectedIndex = Math.floor(Math.random() * range)
   } else if (difficulty === BotDifficulties.MEDIUM) {
-    const range = Math.min(3, allMoves.length)
+    const range = Math.min(3, scoredActions.length)
     selectedIndex = Math.floor(Math.random() * range)
   }
 
-  const selected = allMoves[selectedIndex]
-  return { from: selected.from, to: selected.to }
+  const selected = scoredActions[selectedIndex]
+  return { from: selected.from, to: selected.to, isAttack: selected.isAttack }
 }
 
 export const getHintMove = (board: Board, lastMove: Move | null, boardSize: BoardSize): HintMove | null => {
-  const allMoves: { from: Position; to: Position; score: number }[] = []
-  const rows = board.length
-  const cols = board[0].length
+  const allActions = getAllMovesAndAttacks(board, PlayerColors.WHITE, boardSize)
 
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const cell = board[row][col]
-      if (cell && isPiece(cell) && cell.color === PieceColors.WHITE) {
-        const moves = getValidMoves(board, { row, col }, lastMove, boardSize)
-        for (const to of moves) {
-          const { newBoard, move } = makeMove(board, { row, col }, to, lastMove, boardSize)
-          
-          let score = -evaluateBoard(newBoard)
-          
-          if (move.captured) {
-            score += PIECE_VALUES[move.captured.type] * 10
-          }
-          
-          if (isInCheck(newBoard, PieceColors.BLACK, boardSize)) {
-            score += 50
-          }
-          
-          const fromBonus = getCenterBonus(row, col, rows, cols, cell.type)
-          const toBonus = getCenterBonus(to.row, to.col, rows, cols, cell.type)
-          score += toBonus - fromBonus
-
-          allMoves.push({ from: { row, col }, to, score })
-        }
-      }
-    }
-  }
-
-  if (allMoves.length === 0) {
+  if (allActions.length === 0) {
     return null
   }
 
-  allMoves.sort((a, b) => b.score - a.score)
-  return { from: allMoves[0].from, to: allMoves[0].to }
+  const scoredActions = allActions.map(action => {
+    const { newBoard, move } = makeMove(board, action.from, action.to, boardSize, action.isAttack)
+    
+    let score = -evaluateBoard(newBoard)
+    
+    if (move.captured) {
+      const capturedRules = PIECE_RULES[move.captured.type]
+      score += capturedRules.points * 10
+    }
+    
+    const rows = board.length
+    const cols = board[0].length
+    const cell = board[action.from.row][action.from.col]
+    if (cell && isPiece(cell)) {
+      const fromBonus = getCenterBonus(action.from.row, action.from.col, rows, cols, cell.type)
+      const toBonus = getCenterBonus(action.to.row, action.to.col, rows, cols, cell.type)
+      score += toBonus - fromBonus
+    }
+
+    return { ...action, score }
+  })
+
+  scoredActions.sort((a, b) => b.score - a.score)
+  return { from: scoredActions[0].from, to: scoredActions[0].to, isAttack: scoredActions[0].isAttack }
 }

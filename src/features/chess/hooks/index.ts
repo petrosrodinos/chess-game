@@ -1,1 +1,1 @@
-export { useChessGame } from './useChessGame'
+export { useGame } from './useGame'
