@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
-import type { GameState, Position, PieceType, BotDifficulty, HintMove } from '../types'
-import { BOT_DELAY } from '../constants'
+import type { GameState, Position, PieceType, BotDifficulty, HintMove, BoardSizeKey } from '../types'
+import { isPiece, BOARD_SIZES, PieceColors, PieceTypes, BotDifficulties, BoardSizeKeys } from '../types'
+import { BOT_DELAY, DEFAULT_BOARD_SIZE } from '../constants'
 import {
     createInitialBoard,
     getValidMoves,
@@ -15,10 +16,14 @@ interface HistoryEntry {
     gameState: GameState
 }
 
-export const useChessGame = () => {
+export const useChessGame = (initialBoardSizeKey: BoardSizeKey = BoardSizeKeys.SMALL) => {
+    const [boardSizeKey, setBoardSizeKey] = useState<BoardSizeKey>(initialBoardSizeKey)
+    const boardSize = BOARD_SIZES[boardSizeKey] || DEFAULT_BOARD_SIZE
+
     const [gameState, setGameState] = useState<GameState>(() => ({
-        board: createInitialBoard(),
-        currentPlayer: 'white',
+        board: createInitialBoard(boardSize),
+        boardSize: boardSize,
+        currentPlayer: PieceColors.WHITE,
         selectedPosition: null,
         validMoves: [],
         isCheck: false,
@@ -33,18 +38,18 @@ export const useChessGame = () => {
     const [pendingPromotion, setPendingPromotion] = useState<{ from: Position; to: Position } | null>(null)
     const [botEnabled, setBotEnabled] = useState(false)
     const [botThinking, setBotThinking] = useState(false)
-    const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('medium')
+    const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BotDifficulties.MEDIUM)
     const [hintMove, setHintMove] = useState<HintMove | null>(null)
 
     useEffect(() => {
         if (!botEnabled) return
-        if (gameState.currentPlayer !== 'black') return
+        if (gameState.currentPlayer !== PieceColors.BLACK) return
         if (gameState.isCheckmate || gameState.isStalemate) return
 
         setBotThinking(true)
 
         const timer = setTimeout(() => {
-            const botMove = getBotMove(gameState.board, gameState.lastMove, botDifficulty)
+            const botMove = getBotMove(gameState.board, gameState.lastMove, botDifficulty, gameState.boardSize)
 
             if (!botMove) {
                 setBotThinking(false)
@@ -56,15 +61,16 @@ export const useChessGame = () => {
                 botMove.from,
                 botMove.to,
                 gameState.lastMove,
-                'queen'
+                gameState.boardSize,
+                PieceTypes.QUEEN
             )
 
-            const check = isInCheck(newBoard, 'white')
-            const hasLegal = hasLegalMoves(newBoard, 'white', move)
+            const check = isInCheck(newBoard, PieceColors.WHITE, gameState.boardSize)
+            const hasLegal = hasLegalMoves(newBoard, PieceColors.WHITE, move, gameState.boardSize)
 
             const newCaptured = { ...gameState.capturedPieces }
             if (move.captured) {
-                if (move.captured.color === 'white') {
+                if (move.captured.color === PieceColors.WHITE) {
                     newCaptured.white = [...newCaptured.white, move.captured]
                 } else {
                     newCaptured.black = [...newCaptured.black, move.captured]
@@ -74,7 +80,7 @@ export const useChessGame = () => {
             setGameState(prev => ({
                 ...prev,
                 board: newBoard,
-                currentPlayer: 'white',
+                currentPlayer: PieceColors.WHITE,
                 selectedPosition: null,
                 validMoves: [],
                 isCheck: check,
@@ -89,17 +95,17 @@ export const useChessGame = () => {
         }, BOT_DELAY[botDifficulty])
 
         return () => clearTimeout(timer)
-    }, [botEnabled, botDifficulty, gameState.currentPlayer, gameState.board, gameState.lastMove, gameState.isCheckmate, gameState.isStalemate, gameState.capturedPieces])
+    }, [botEnabled, botDifficulty, gameState.currentPlayer, gameState.board, gameState.lastMove, gameState.isCheckmate, gameState.isStalemate, gameState.capturedPieces, gameState.boardSize])
 
     const selectSquare = useCallback((pos: Position) => {
-        if (botEnabled && gameState.currentPlayer === 'black') return
+        if (botEnabled && gameState.currentPlayer === PieceColors.BLACK) return
 
         setHintMove(null)
 
         setGameState(prev => {
             if (prev.isCheckmate || prev.isStalemate) return prev
 
-            const piece = prev.board[pos.row][pos.col]
+            const cell = prev.board[pos.row][pos.col]
 
             if (prev.selectedPosition) {
                 const isValidMove = prev.validMoves.some(
@@ -107,10 +113,10 @@ export const useChessGame = () => {
                 )
 
                 if (isValidMove) {
-                    const selectedPiece = prev.board[prev.selectedPosition.row][prev.selectedPosition.col]
+                    const selectedCell = prev.board[prev.selectedPosition.row][prev.selectedPosition.col]
 
-                    if (selectedPiece?.type === 'pawn') {
-                        const promotionRow = selectedPiece.color === 'white' ? 0 : 7
+                    if (selectedCell && isPiece(selectedCell) && selectedCell.type === PieceTypes.PAWN) {
+                        const promotionRow = selectedCell.color === PieceColors.WHITE ? 0 : prev.boardSize.rows - 1
                         if (pos.row === promotionRow) {
                             setPendingPromotion({ from: prev.selectedPosition, to: pos })
                             return prev
@@ -123,16 +129,17 @@ export const useChessGame = () => {
                         prev.board,
                         prev.selectedPosition,
                         pos,
-                        prev.lastMove
+                        prev.lastMove,
+                        prev.boardSize
                     )
 
-                    const nextPlayer = prev.currentPlayer === 'white' ? 'black' : 'white'
-                    const check = isInCheck(newBoard, nextPlayer)
-                    const hasLegal = hasLegalMoves(newBoard, nextPlayer, move)
+                    const nextPlayer = prev.currentPlayer === PieceColors.WHITE ? PieceColors.BLACK : PieceColors.WHITE
+                    const check = isInCheck(newBoard, nextPlayer, prev.boardSize)
+                    const hasLegal = hasLegalMoves(newBoard, nextPlayer, move, prev.boardSize)
 
                     const newCaptured = { ...prev.capturedPieces }
                     if (move.captured) {
-                        if (move.captured.color === 'white') {
+                        if (move.captured.color === PieceColors.WHITE) {
                             newCaptured.white = [...newCaptured.white, move.captured]
                         } else {
                             newCaptured.black = [...newCaptured.black, move.captured]
@@ -154,16 +161,16 @@ export const useChessGame = () => {
                     }
                 }
 
-                if (piece && piece.color === prev.currentPlayer) {
-                    const moves = getValidMoves(prev.board, pos, prev.lastMove)
+                if (cell && isPiece(cell) && cell.color === prev.currentPlayer) {
+                    const moves = getValidMoves(prev.board, pos, prev.lastMove, prev.boardSize)
                     return { ...prev, selectedPosition: pos, validMoves: moves }
                 }
 
                 return { ...prev, selectedPosition: null, validMoves: [] }
             }
 
-            if (piece && piece.color === prev.currentPlayer) {
-                const moves = getValidMoves(prev.board, pos, prev.lastMove)
+            if (cell && isPiece(cell) && cell.color === prev.currentPlayer) {
+                const moves = getValidMoves(prev.board, pos, prev.lastMove, prev.boardSize)
                 return { ...prev, selectedPosition: pos, validMoves: moves }
             }
 
@@ -182,16 +189,17 @@ export const useChessGame = () => {
                 pendingPromotion.from,
                 pendingPromotion.to,
                 prev.lastMove,
+                prev.boardSize,
                 pieceType
             )
 
-            const nextPlayer = prev.currentPlayer === 'white' ? 'black' : 'white'
-            const check = isInCheck(newBoard, nextPlayer)
-            const hasLegal = hasLegalMoves(newBoard, nextPlayer, move)
+            const nextPlayer = prev.currentPlayer === PieceColors.WHITE ? PieceColors.BLACK : PieceColors.WHITE
+            const check = isInCheck(newBoard, nextPlayer, prev.boardSize)
+            const hasLegal = hasLegalMoves(newBoard, nextPlayer, move, prev.boardSize)
 
             const newCaptured = { ...prev.capturedPieces }
             if (move.captured) {
-                if (move.captured.color === 'white') {
+                if (move.captured.color === PieceColors.WHITE) {
                     newCaptured.white = [...newCaptured.white, move.captured]
                 } else {
                     newCaptured.black = [...newCaptured.black, move.captured]
@@ -216,10 +224,18 @@ export const useChessGame = () => {
         setPendingPromotion(null)
     }, [pendingPromotion])
 
-    const resetGame = useCallback(() => {
+    const resetGame = useCallback((newBoardSizeKey?: BoardSizeKey) => {
+        const sizeKey = newBoardSizeKey || boardSizeKey
+        const newBoardSize = BOARD_SIZES[sizeKey] || DEFAULT_BOARD_SIZE
+        
+        if (newBoardSizeKey) {
+            setBoardSizeKey(newBoardSizeKey)
+        }
+
         setGameState({
-            board: createInitialBoard(),
-            currentPlayer: 'white',
+            board: createInitialBoard(newBoardSize),
+            boardSize: newBoardSize,
+            currentPlayer: PieceColors.WHITE,
             selectedPosition: null,
             validMoves: [],
             isCheck: false,
@@ -233,7 +249,7 @@ export const useChessGame = () => {
         setPendingPromotion(null)
         setBotThinking(false)
         setHintMove(null)
-    }, [])
+    }, [boardSizeKey])
 
     const toggleBot = useCallback(() => {
         setBotEnabled(prev => !prev)
@@ -258,18 +274,19 @@ export const useChessGame = () => {
     }, [history.length, botThinking])
 
     const showHint = useCallback(() => {
-        if (gameState.currentPlayer !== 'white') return
+        if (gameState.currentPlayer !== PieceColors.WHITE) return
         if (gameState.isCheckmate || gameState.isStalemate) return
 
-        const hint = getHintMove(gameState.board, gameState.lastMove)
+        const hint = getHintMove(gameState.board, gameState.lastMove, gameState.boardSize)
         setHintMove(hint)
-    }, [gameState.board, gameState.lastMove, gameState.currentPlayer, gameState.isCheckmate, gameState.isStalemate])
+    }, [gameState.board, gameState.lastMove, gameState.currentPlayer, gameState.isCheckmate, gameState.isStalemate, gameState.boardSize])
 
-    const canUndo = history.length > 0 && gameState.currentPlayer === 'white' && !botThinking
-    const canHint = gameState.currentPlayer === 'white' && !gameState.isCheckmate && !gameState.isStalemate && !botThinking
+    const canUndo = history.length > 0 && gameState.currentPlayer === PieceColors.WHITE && !botThinking
+    const canHint = gameState.currentPlayer === PieceColors.WHITE && !gameState.isCheckmate && !gameState.isStalemate && !botThinking
 
     return {
         gameState,
+        boardSizeKey,
         pendingPromotion,
         botEnabled,
         botThinking,

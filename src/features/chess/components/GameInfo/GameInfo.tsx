@@ -1,5 +1,6 @@
-import type { PieceColor, Piece, Move, BotDifficulty } from '../../types'
-import { FILES, PIECE_SYMBOLS } from '../../constants'
+import type { PieceColor, Piece, Move, BotDifficulty, BoardSizeKey } from '../../types'
+import { BOARD_SIZES, PieceColors, PieceTypes, BotDifficulties, BoardSizeKeys } from '../../types'
+import { generateFiles, PIECE_SYMBOLS } from '../../constants'
 
 interface GameInfoProps {
   currentPlayer: PieceColor
@@ -14,12 +15,14 @@ interface GameInfoProps {
   canUndo: boolean
   canHint: boolean
   is3D: boolean
+  boardSizeKey: BoardSizeKey
   onReset: () => void
   onToggleBot: () => void
   onDifficultyChange: (difficulty: BotDifficulty) => void
   onUndo: () => void
   onHint: () => void
   onToggle3D: () => void
+  onBoardSizeChange: (sizeKey: BoardSizeKey) => void
 }
 
 export const GameInfo = ({
@@ -35,17 +38,22 @@ export const GameInfo = ({
   canUndo,
   canHint,
   is3D,
+  boardSizeKey,
   onReset,
   onToggleBot,
   onDifficultyChange,
   onUndo,
   onHint,
-  onToggle3D
+  onToggle3D,
+  onBoardSizeChange
 }: GameInfoProps) => {
+  const boardSize = BOARD_SIZES[boardSizeKey]
+  const files = generateFiles(boardSize.cols)
+
   const formatMove = (move: Move, index: number) => {
-    const from = `${FILES[move.from.col]}${8 - move.from.row}`
-    const to = `${FILES[move.to.col]}${8 - move.to.row}`
-    const piece = move.piece.type === 'pawn' ? '' : move.piece.type[0].toUpperCase()
+    const from = `${files[move.from.col]}${boardSize.rows - move.from.row}`
+    const to = `${files[move.to.col]}${boardSize.rows - move.to.row}`
+    const piece = move.piece.type === PieceTypes.PAWN ? '' : move.piece.type[0].toUpperCase()
     const capture = move.captured ? 'x' : ''
     const check = index === moveHistory.length - 1 && isCheck ? '+' : ''
     const mate = index === moveHistory.length - 1 && isCheckmate ? '#' : ''
@@ -54,19 +62,21 @@ export const GameInfo = ({
   }
 
   const getStatusText = () => {
-    if (isCheckmate) return `Checkmate! ${currentPlayer === 'white' ? 'Black' : 'White'} wins!`
+    if (isCheckmate) return `Checkmate! ${currentPlayer === PieceColors.WHITE ? 'Black' : 'White'} wins!`
     if (isStalemate) return 'Stalemate! Game is a draw.'
-    if (isCheck) return `${currentPlayer === 'white' ? 'White' : 'Black'} is in check!`
-    return `${currentPlayer === 'white' ? 'White' : 'Black'}'s turn`
+    if (isCheck) return `${currentPlayer === PieceColors.WHITE ? 'White' : 'Black'} is in check!`
+    return `${currentPlayer === PieceColors.WHITE ? 'White' : 'Black'}'s turn`
   }
 
-  const pieceOrder = ['queen', 'rook', 'bishop', 'knight', 'pawn'] as const
+  const pieceOrder = [PieceTypes.QUEEN, PieceTypes.ROOK, PieceTypes.BISHOP, PieceTypes.KNIGHT, PieceTypes.PAWN] as const
 
   const sortedCaptured = (pieces: Piece[]) => {
     return [...pieces].sort((a, b) => 
       pieceOrder.indexOf(a.type as typeof pieceOrder[number]) - pieceOrder.indexOf(b.type as typeof pieceOrder[number])
     )
   }
+
+  const boardSizeOptions: BoardSizeKey[] = [BoardSizeKeys.SMALL, BoardSizeKeys.MEDIUM, BoardSizeKeys.LARGE]
 
   return (
     <div className="bg-stone-800/80 backdrop-blur rounded-xl p-4 md:p-6 w-full max-w-xs border border-stone-700">
@@ -88,11 +98,30 @@ export const GameInfo = ({
       </div>
 
       <div className="mb-4">
+        <h3 className="text-sm font-medium text-amber-200 mb-2">Board Size</h3>
+        <div className="flex gap-2">
+          {boardSizeOptions.map((sizeKey) => (
+            <button
+              key={sizeKey}
+              onClick={() => onBoardSizeChange(sizeKey)}
+              className={`flex-1 py-1.5 px-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                boardSizeKey === sizeKey
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
+              }`}
+            >
+              {sizeKey}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-4">
         <h3 className="text-sm font-medium text-amber-200 mb-2">Current Turn</h3>
         <div className="flex items-center gap-2">
           <div
             className={`w-6 h-6 rounded-full border-2 ${
-              currentPlayer === 'white'
+              currentPlayer === PieceColors.WHITE
                 ? 'bg-amber-50 border-amber-200'
                 : 'bg-stone-900 border-stone-600'
             }`}
@@ -131,7 +160,7 @@ export const GameInfo = ({
         <h3 className="text-sm font-medium text-amber-200 mb-2">
           Move History ({Math.ceil(moveHistory.length / 2)} moves)
         </h3>
-        <div className="bg-stone-900/50 rounded-lg p-2 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-stone-600">
+        <div className="bg-stone-900/50 rounded-lg p-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-stone-600">
           {moveHistory.length === 0 ? (
             <p className="text-stone-500 text-sm text-center py-2">No moves yet</p>
           ) : (
@@ -202,9 +231,9 @@ export const GameInfo = ({
               onChange={(e) => onDifficultyChange(e.target.value as BotDifficulty)}
               className="bg-stone-700 text-amber-100 text-sm rounded-lg px-3 py-1.5 border border-stone-600 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
             >
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
+              <option value={BotDifficulties.EASY}>Easy</option>
+              <option value={BotDifficulties.MEDIUM}>Medium</option>
+              <option value={BotDifficulties.HARD}>Hard</option>
             </select>
           </div>
         )}

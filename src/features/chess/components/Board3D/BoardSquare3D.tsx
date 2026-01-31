@@ -6,6 +6,7 @@ interface BoardSquare3DProps {
   isValidMove: boolean
   isLastMove: boolean
   isHint: boolean
+  isObstacle: boolean
   onClick: () => void
 }
 
@@ -15,11 +16,13 @@ export const BoardSquare3D = ({
   isValidMove,
   isLastMove,
   isHint,
+  isObstacle,
   onClick
 }: BoardSquare3DProps) => {
   const [hovered, setHovered] = useState(false)
 
   const getColor = () => {
+    if (isObstacle) return '#3d3d3d'
     if (isHint) return isLight ? '#67e8f9' : '#0891b2'
     if (isLastMove) return isLight ? '#fde047' : '#ca8a04'
     if (hovered && isValidMove) return '#4ade80'
@@ -42,7 +45,7 @@ export const BoardSquare3D = ({
         <meshStandardMaterial color={getColor()} />
       </mesh>
       
-      {isValidMove && (
+      {isValidMove && !isObstacle && (
         <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.15, 32]} />
           <meshBasicMaterial color="#22c55e" transparent opacity={0.8} />

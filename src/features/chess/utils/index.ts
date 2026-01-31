@@ -1,4 +1,4 @@
-export { createInitialBoard, cloneBoard, isInBounds } from './boardUtils'
+export { createInitialBoard, cloneBoard, isInBounds, isSquareBlockedByObstacle, getCellContent } from './boardUtils'
 export {
   getPieceMoves,
   getValidMoves,

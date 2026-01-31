@@ -1,103 +1,82 @@
-import type { GameState } from '../types'
+import type { GameState, BoardSize } from '../types'
+import { PieceColors, PieceTypes, ObstacleTypes, BotDifficulties, BoardSizeKeys } from '../types'
 
-export const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const
+export const generateFiles = (cols: number): string[] => {
+  const files: string[] = []
+  for (let i = 0; i < cols; i++) {
+    files.push(String.fromCharCode(97 + i))
+  }
+  return files
+}
 
-export const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'] as const
+export const generateRanks = (rows: number): string[] => {
+  const ranks: string[] = []
+  for (let i = rows; i > 0; i--) {
+    ranks.push(String(i))
+  }
+  return ranks
+}
 
 export const PIECE_VALUES = {
-  pawn: 100,
-  knight: 320,
-  bishop: 330,
-  rook: 500,
-  queen: 900,
-  king: 20000
+  [PieceTypes.PAWN]: 100,
+  [PieceTypes.KNIGHT]: 320,
+  [PieceTypes.BISHOP]: 330,
+  [PieceTypes.ROOK]: 500,
+  [PieceTypes.QUEEN]: 900,
+  [PieceTypes.KING]: 20000
 } as const
 
 export const PIECE_SYMBOLS = {
-  white: {
-    king: '♔',
-    queen: '♕',
-    rook: '♖',
-    bishop: '♗',
-    knight: '♘',
-    pawn: '♙'
+  [PieceColors.WHITE]: {
+    [PieceTypes.KING]: '♔',
+    [PieceTypes.QUEEN]: '♕',
+    [PieceTypes.ROOK]: '♖',
+    [PieceTypes.BISHOP]: '♗',
+    [PieceTypes.KNIGHT]: '♘',
+    [PieceTypes.PAWN]: '♙'
   },
-  black: {
-    king: '♚',
-    queen: '♛',
-    rook: '♜',
-    bishop: '♝',
-    knight: '♞',
-    pawn: '♟'
+  [PieceColors.BLACK]: {
+    [PieceTypes.KING]: '♚',
+    [PieceTypes.QUEEN]: '♛',
+    [PieceTypes.ROOK]: '♜',
+    [PieceTypes.BISHOP]: '♝',
+    [PieceTypes.KNIGHT]: '♞',
+    [PieceTypes.PAWN]: '♟'
   }
 } as const
 
-export const POSITION_BONUS = {
-  pawn: [
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [50, 50, 50, 50, 50, 50, 50, 50],
-    [10, 10, 20, 30, 30, 20, 10, 10],
-    [5, 5, 10, 25, 25, 10, 5, 5],
-    [0, 0, 0, 20, 20, 0, 0, 0],
-    [5, -5, -10, 0, 0, -10, -5, 5],
-    [5, 10, 10, -20, -20, 10, 10, 5],
-    [0, 0, 0, 0, 0, 0, 0, 0]
-  ],
-  knight: [
-    [-50, -40, -30, -30, -30, -30, -40, -50],
-    [-40, -20, 0, 0, 0, 0, -20, -40],
-    [-30, 0, 10, 15, 15, 10, 0, -30],
-    [-30, 5, 15, 20, 20, 15, 5, -30],
-    [-30, 0, 15, 20, 20, 15, 0, -30],
-    [-30, 5, 10, 15, 15, 10, 5, -30],
-    [-40, -20, 0, 5, 5, 0, -20, -40],
-    [-50, -40, -30, -30, -30, -30, -40, -50]
-  ],
-  bishop: [
-    [-20, -10, -10, -10, -10, -10, -10, -20],
-    [-10, 0, 0, 0, 0, 0, 0, -10],
-    [-10, 0, 5, 10, 10, 5, 0, -10],
-    [-10, 5, 5, 10, 10, 5, 5, -10],
-    [-10, 0, 10, 10, 10, 10, 0, -10],
-    [-10, 10, 10, 10, 10, 10, 10, -10],
-    [-10, 5, 0, 0, 0, 0, 5, -10],
-    [-20, -10, -10, -10, -10, -10, -10, -20]
-  ],
-  rook: [
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [5, 10, 10, 10, 10, 10, 10, 5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [0, 0, 0, 5, 5, 0, 0, 0]
-  ],
-  queen: [
-    [-20, -10, -10, -5, -5, -10, -10, -20],
-    [-10, 0, 0, 0, 0, 0, 0, -10],
-    [-10, 0, 5, 5, 5, 5, 0, -10],
-    [-5, 0, 5, 5, 5, 5, 0, -5],
-    [0, 0, 5, 5, 5, 5, 0, -5],
-    [-10, 5, 5, 5, 5, 5, 0, -10],
-    [-10, 0, 5, 0, 0, 0, 0, -10],
-    [-20, -10, -10, -5, -5, -10, -10, -20]
-  ],
-  king: [
-    [-30, -40, -40, -50, -50, -40, -40, -30],
-    [-30, -40, -40, -50, -50, -40, -40, -30],
-    [-30, -40, -40, -50, -50, -40, -40, -30],
-    [-30, -40, -40, -50, -50, -40, -40, -30],
-    [-20, -30, -30, -40, -40, -30, -30, -20],
-    [-10, -20, -20, -20, -20, -20, -20, -10],
-    [20, 20, 0, 0, 0, 0, 20, 20],
-    [20, 30, 10, 0, 0, 10, 30, 20]
-  ]
+export const OBSTACLE_SYMBOLS = {
+  [ObstacleTypes.CAVE]: '🕳️',
+  [ObstacleTypes.TREE]: '🌲',
+  [ObstacleTypes.ROCK]: '🪨',
+  [ObstacleTypes.RIVER]: '🌊',
+  [ObstacleTypes.LAKE]: '💧',
+  [ObstacleTypes.CANYON]: '🏜️',
+  [ObstacleTypes.MYSTERY_BOX]: '❓'
 } as const
+
+export const OBSTACLE_COLORS = {
+  [ObstacleTypes.CAVE]: '#2d2d2d',
+  [ObstacleTypes.TREE]: '#228b22',
+  [ObstacleTypes.ROCK]: '#808080',
+  [ObstacleTypes.RIVER]: '#4169e1',
+  [ObstacleTypes.LAKE]: '#1e90ff',
+  [ObstacleTypes.CANYON]: '#cd853f',
+  [ObstacleTypes.MYSTERY_BOX]: '#9932cc'
+} as const
+
+export const OBSTACLE_DENSITY = {
+  [BoardSizeKeys.SMALL]: { min: 8, max: 14 },
+  [BoardSizeKeys.MEDIUM]: { min: 12, max: 20 },
+  [BoardSizeKeys.LARGE]: { min: 16, max: 28 }
+} as const
+
+export const DEFAULT_BOARD_SIZE: BoardSize = { rows: 12, cols: 12 }
 
 export const INITIAL_GAME_STATE: GameState = {
   board: [],
-  currentPlayer: 'white',
+  boardSize: DEFAULT_BOARD_SIZE,
+  currentPlayer: PieceColors.WHITE,
   selectedPosition: null,
   validMoves: [],
   isCheck: false,
@@ -109,7 +88,7 @@ export const INITIAL_GAME_STATE: GameState = {
 }
 
 export const BOT_DELAY = {
-  easy: 400,
-  medium: 400,
-  hard: 600
+  [BotDifficulties.EASY]: 400,
+  [BotDifficulties.MEDIUM]: 400,
+  [BotDifficulties.HARD]: 600
 } as const

@@ -1,4 +1,5 @@
 import type { PieceColor, PieceType } from '../../types'
+import { PieceColors, PieceTypes } from '../../types'
 import { PIECE_SYMBOLS } from '../../constants'
 
 interface PromotionModalProps {
@@ -7,7 +8,7 @@ interface PromotionModalProps {
 }
 
 export const PromotionModal = ({ color, onSelect }: PromotionModalProps) => {
-  const pieces: PieceType[] = ['queen', 'rook', 'bishop', 'knight']
+  const pieces: PieceType[] = [PieceTypes.QUEEN, PieceTypes.ROOK, PieceTypes.BISHOP, PieceTypes.KNIGHT]
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -21,18 +22,18 @@ export const PromotionModal = ({ color, onSelect }: PromotionModalProps) => {
               key={type}
               onClick={() => onSelect(type)}
               className={`w-16 h-16 md:w-20 md:h-20 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-110 ${
-                color === 'white'
+                color === PieceColors.WHITE
                   ? 'bg-amber-100 hover:bg-amber-200'
                   : 'bg-emerald-700 hover:bg-emerald-600'
               }`}
             >
               <span
                 className={`text-5xl ${
-                  color === 'white' ? 'text-amber-50' : 'text-stone-900'
+                  color === PieceColors.WHITE ? 'text-amber-50' : 'text-stone-900'
                 }`}
                 style={{
                   textShadow:
-                    color === 'white'
+                    color === PieceColors.WHITE
                       ? '1px 1px 2px rgba(0,0,0,0.5)'
                       : '1px 1px 2px rgba(255,255,255,0.3)'
                 }}

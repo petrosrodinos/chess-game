@@ -1,15 +1,20 @@
-import type { Board, Piece, Position, Move, PieceColor, PieceType } from '../types'
-import { isInBounds, cloneBoard } from './boardUtils'
+import type { Board, Piece, Position, Move, PieceColor, PieceType, BoardSize } from '../types'
+import { isPiece, PieceColors, PieceTypes } from '../types'
+import { isInBounds, cloneBoard, isSquareBlockedByObstacle } from './boardUtils'
 
-const getPawnMoves = (board: Board, pos: Position, piece: Piece, lastMove: Move | null): Position[] => {
+const getPawnMoves = (board: Board, pos: Position, piece: Piece, lastMove: Move | null, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
-  const direction = piece.color === 'white' ? -1 : 1
-  const startRow = piece.color === 'white' ? 6 : 1
+  const direction = piece.color === PieceColors.WHITE ? -1 : 1
+  const startRow = piece.color === PieceColors.WHITE ? boardSize.rows - 2 : 1
   
-  if (isInBounds(pos.row + direction, pos.col) && !board[pos.row + direction][pos.col]) {
+  if (isInBounds(pos.row + direction, pos.col, boardSize) && 
+      !board[pos.row + direction][pos.col] &&
+      !isSquareBlockedByObstacle(board, pos.row + direction, pos.col)) {
     moves.push({ row: pos.row + direction, col: pos.col })
     
-    if (pos.row === startRow && !board[pos.row + 2 * direction][pos.col]) {
+    if (pos.row === startRow && 
+        !board[pos.row + 2 * direction][pos.col] &&
+        !isSquareBlockedByObstacle(board, pos.row + 2 * direction, pos.col)) {
       moves.push({ row: pos.row + 2 * direction, col: pos.col })
     }
   }
@@ -17,19 +22,23 @@ const getPawnMoves = (board: Board, pos: Position, piece: Piece, lastMove: Move 
   for (const colOffset of [-1, 1]) {
     const newCol = pos.col + colOffset
     const newRow = pos.row + direction
-    if (isInBounds(newRow, newCol)) {
+    if (isInBounds(newRow, newCol, boardSize)) {
+      if (isSquareBlockedByObstacle(board, newRow, newCol)) continue
       const target = board[newRow][newCol]
-      if (target && target.color !== piece.color) {
+      if (target && isPiece(target) && target.color !== piece.color) {
         moves.push({ row: newRow, col: newCol })
       }
     }
   }
   
-  if (lastMove && lastMove.piece.type === 'pawn') {
+  if (lastMove && lastMove.piece.type === PieceTypes.PAWN) {
     const movedTwoSquares = Math.abs(lastMove.from.row - lastMove.to.row) === 2
     if (movedTwoSquares && lastMove.to.row === pos.row) {
       if (Math.abs(lastMove.to.col - pos.col) === 1) {
-        moves.push({ row: pos.row + direction, col: lastMove.to.col })
+        const epRow = pos.row + direction
+        if (!isSquareBlockedByObstacle(board, epRow, lastMove.to.col)) {
+          moves.push({ row: epRow, col: lastMove.to.col })
+        }
       }
     }
   }
@@ -37,7 +46,7 @@ const getPawnMoves = (board: Board, pos: Position, piece: Piece, lastMove: Move 
   return moves
 }
 
-const getKnightMoves = (board: Board, pos: Position, piece: Piece): Position[] => {
+const getKnightMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   const offsets = [
     [-2, -1], [-2, 1], [-1, -2], [-1, 2],
@@ -47,9 +56,10 @@ const getKnightMoves = (board: Board, pos: Position, piece: Piece): Position[] =
   for (const [rowOff, colOff] of offsets) {
     const newRow = pos.row + rowOff
     const newCol = pos.col + colOff
-    if (isInBounds(newRow, newCol)) {
+    if (isInBounds(newRow, newCol, boardSize)) {
+      if (isSquareBlockedByObstacle(board, newRow, newCol)) continue
       const target = board[newRow][newCol]
-      if (!target || target.color !== piece.color) {
+      if (!target || (isPiece(target) && target.color !== piece.color)) {
         moves.push({ row: newRow, col: newCol })
       }
     }
@@ -58,21 +68,25 @@ const getKnightMoves = (board: Board, pos: Position, piece: Piece): Position[] =
   return moves
 }
 
-const getSlidingMoves = (board: Board, pos: Position, piece: Piece, directions: number[][]): Position[] => {
+const getSlidingMoves = (board: Board, pos: Position, piece: Piece, directions: number[][], boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   
   for (const [rowDir, colDir] of directions) {
     let newRow = pos.row + rowDir
     let newCol = pos.col + colDir
     
-    while (isInBounds(newRow, newCol)) {
+    while (isInBounds(newRow, newCol, boardSize)) {
+      if (isSquareBlockedByObstacle(board, newRow, newCol)) break
+      
       const target = board[newRow][newCol]
       if (!target) {
         moves.push({ row: newRow, col: newCol })
-      } else {
+      } else if (isPiece(target)) {
         if (target.color !== piece.color) {
           moves.push({ row: newRow, col: newCol })
         }
+        break
+      } else {
         break
       }
       newRow += rowDir
@@ -83,22 +97,22 @@ const getSlidingMoves = (board: Board, pos: Position, piece: Piece, directions: 
   return moves
 }
 
-const getBishopMoves = (board: Board, pos: Position, piece: Piece): Position[] => {
-  return getSlidingMoves(board, pos, piece, [[-1, -1], [-1, 1], [1, -1], [1, 1]])
+const getBishopMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
+  return getSlidingMoves(board, pos, piece, [[-1, -1], [-1, 1], [1, -1], [1, 1]], boardSize)
 }
 
-const getRookMoves = (board: Board, pos: Position, piece: Piece): Position[] => {
-  return getSlidingMoves(board, pos, piece, [[-1, 0], [1, 0], [0, -1], [0, 1]])
+const getRookMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
+  return getSlidingMoves(board, pos, piece, [[-1, 0], [1, 0], [0, -1], [0, 1]], boardSize)
 }
 
-const getQueenMoves = (board: Board, pos: Position, piece: Piece): Position[] => {
+const getQueenMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   return [
-    ...getBishopMoves(board, pos, piece),
-    ...getRookMoves(board, pos, piece)
+    ...getBishopMoves(board, pos, piece, boardSize),
+    ...getRookMoves(board, pos, piece, boardSize)
   ]
 }
 
-const getKingMoves = (board: Board, pos: Position, piece: Piece): Position[] => {
+const getKingMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   const offsets = [
     [-1, -1], [-1, 0], [-1, 1],
@@ -109,9 +123,10 @@ const getKingMoves = (board: Board, pos: Position, piece: Piece): Position[] => 
   for (const [rowOff, colOff] of offsets) {
     const newRow = pos.row + rowOff
     const newCol = pos.col + colOff
-    if (isInBounds(newRow, newCol)) {
+    if (isInBounds(newRow, newCol, boardSize)) {
+      if (isSquareBlockedByObstacle(board, newRow, newCol)) continue
       const target = board[newRow][newCol]
-      if (!target || target.color !== piece.color) {
+      if (!target || (isPiece(target) && target.color !== piece.color)) {
         moves.push({ row: newRow, col: newCol })
       }
     }
@@ -121,10 +136,10 @@ const getKingMoves = (board: Board, pos: Position, piece: Piece): Position[] => 
 }
 
 export const findKing = (board: Board, color: PieceColor): Position | null => {
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
-      const piece = board[row][col]
-      if (piece && piece.type === 'king' && piece.color === color) {
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[0].length; col++) {
+      const cell = board[row][col]
+      if (cell && isPiece(cell) && cell.type === PieceTypes.KING && cell.color === color) {
         return { row, col }
       }
     }
@@ -132,28 +147,30 @@ export const findKing = (board: Board, color: PieceColor): Position | null => {
   return null
 }
 
-export const isSquareUnderAttack = (board: Board, pos: Position, defendingColor: PieceColor): boolean => {
-  const attackingColor = defendingColor === 'white' ? 'black' : 'white'
+export const isSquareUnderAttack = (board: Board, pos: Position, defendingColor: PieceColor, boardSize: BoardSize): boolean => {
+  const attackingColor = defendingColor === PieceColors.WHITE ? PieceColors.BLACK : PieceColors.WHITE
   
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
-      const piece = board[row][col]
-      if (piece && piece.color === attackingColor) {
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[0].length; col++) {
+      const cell = board[row][col]
+      if (cell && isPiece(cell) && cell.color === attackingColor) {
         let moves: Position[]
-        if (piece.type === 'pawn') {
-          const direction = piece.color === 'white' ? -1 : 1
+        if (cell.type === PieceTypes.PAWN) {
+          const direction = cell.color === PieceColors.WHITE ? -1 : 1
           moves = []
           for (const colOffset of [-1, 1]) {
             const newCol = col + colOffset
             const newRow = row + direction
-            if (isInBounds(newRow, newCol)) {
-              moves.push({ row: newRow, col: newCol })
+            if (isInBounds(newRow, newCol, boardSize)) {
+              if (!isSquareBlockedByObstacle(board, newRow, newCol)) {
+                moves.push({ row: newRow, col: newCol })
+              }
             }
           }
-        } else if (piece.type === 'king') {
-          moves = getKingMoves(board, { row, col }, piece)
+        } else if (cell.type === PieceTypes.KING) {
+          moves = getKingMoves(board, { row, col }, cell, boardSize)
         } else {
-          moves = getPieceMoves(board, { row, col }, null)
+          moves = getPieceMoves(board, { row, col }, null, boardSize)
         }
         
         if (moves.some(m => m.row === pos.row && m.col === pos.col)) {
@@ -165,36 +182,51 @@ export const isSquareUnderAttack = (board: Board, pos: Position, defendingColor:
   return false
 }
 
-export const isInCheck = (board: Board, color: PieceColor): boolean => {
+export const isInCheck = (board: Board, color: PieceColor, boardSize: BoardSize): boolean => {
   const kingPos = findKing(board, color)
   if (!kingPos) return false
-  return isSquareUnderAttack(board, kingPos, color)
+  return isSquareUnderAttack(board, kingPos, color, boardSize)
 }
 
-const getCastlingMoves = (board: Board, _pos: Position, piece: Piece): Position[] => {
+const getCastlingMoves = (board: Board, _pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   if (piece.hasMoved) return moves
   
-  const row = piece.color === 'white' ? 7 : 0
+  const row = piece.color === PieceColors.WHITE ? boardSize.rows - 1 : 0
+  const kingCol = Math.floor(boardSize.cols / 2)
   
-  const kingSideRook = board[row][7]
-  if (kingSideRook && kingSideRook.type === 'rook' && !kingSideRook.hasMoved) {
-    if (!board[row][5] && !board[row][6]) {
-      if (!isSquareUnderAttack(board, { row, col: 4 }, piece.color) &&
-          !isSquareUnderAttack(board, { row, col: 5 }, piece.color) &&
-          !isSquareUnderAttack(board, { row, col: 6 }, piece.color)) {
-        moves.push({ row, col: 6 })
+  const kingSideRook = board[row][boardSize.cols - 1]
+  if (kingSideRook && isPiece(kingSideRook) && kingSideRook.type === PieceTypes.ROOK && !kingSideRook.hasMoved) {
+    let canCastle = true
+    for (let col = kingCol + 1; col < boardSize.cols - 1; col++) {
+      if (board[row][col] || isSquareBlockedByObstacle(board, row, col)) {
+        canCastle = false
+        break
+      }
+    }
+    if (canCastle) {
+      if (!isSquareUnderAttack(board, { row, col: kingCol }, piece.color, boardSize) &&
+          !isSquareUnderAttack(board, { row, col: kingCol + 1 }, piece.color, boardSize) &&
+          !isSquareUnderAttack(board, { row, col: kingCol + 2 }, piece.color, boardSize)) {
+        moves.push({ row, col: kingCol + 2 })
       }
     }
   }
   
   const queenSideRook = board[row][0]
-  if (queenSideRook && queenSideRook.type === 'rook' && !queenSideRook.hasMoved) {
-    if (!board[row][1] && !board[row][2] && !board[row][3]) {
-      if (!isSquareUnderAttack(board, { row, col: 4 }, piece.color) &&
-          !isSquareUnderAttack(board, { row, col: 3 }, piece.color) &&
-          !isSquareUnderAttack(board, { row, col: 2 }, piece.color)) {
-        moves.push({ row, col: 2 })
+  if (queenSideRook && isPiece(queenSideRook) && queenSideRook.type === PieceTypes.ROOK && !queenSideRook.hasMoved) {
+    let canCastle = true
+    for (let col = 1; col < kingCol; col++) {
+      if (board[row][col] || isSquareBlockedByObstacle(board, row, col)) {
+        canCastle = false
+        break
+      }
+    }
+    if (canCastle) {
+      if (!isSquareUnderAttack(board, { row, col: kingCol }, piece.color, boardSize) &&
+          !isSquareUnderAttack(board, { row, col: kingCol - 1 }, piece.color, boardSize) &&
+          !isSquareUnderAttack(board, { row, col: kingCol - 2 }, piece.color, boardSize)) {
+        moves.push({ row, col: kingCol - 2 })
       }
     }
   }
@@ -202,41 +234,41 @@ const getCastlingMoves = (board: Board, _pos: Position, piece: Piece): Position[
   return moves
 }
 
-export const getPieceMoves = (board: Board, pos: Position, lastMove: Move | null): Position[] => {
-  const piece = board[pos.row][pos.col]
-  if (!piece) return []
+export const getPieceMoves = (board: Board, pos: Position, lastMove: Move | null, boardSize: BoardSize): Position[] => {
+  const cell = board[pos.row][pos.col]
+  if (!cell || !isPiece(cell)) return []
   
   let moves: Position[] = []
   
-  switch (piece.type) {
-    case 'pawn':
-      moves = getPawnMoves(board, pos, piece, lastMove)
+  switch (cell.type) {
+    case PieceTypes.PAWN:
+      moves = getPawnMoves(board, pos, cell, lastMove, boardSize)
       break
-    case 'knight':
-      moves = getKnightMoves(board, pos, piece)
+    case PieceTypes.KNIGHT:
+      moves = getKnightMoves(board, pos, cell, boardSize)
       break
-    case 'bishop':
-      moves = getBishopMoves(board, pos, piece)
+    case PieceTypes.BISHOP:
+      moves = getBishopMoves(board, pos, cell, boardSize)
       break
-    case 'rook':
-      moves = getRookMoves(board, pos, piece)
+    case PieceTypes.ROOK:
+      moves = getRookMoves(board, pos, cell, boardSize)
       break
-    case 'queen':
-      moves = getQueenMoves(board, pos, piece)
+    case PieceTypes.QUEEN:
+      moves = getQueenMoves(board, pos, cell, boardSize)
       break
-    case 'king':
-      moves = [...getKingMoves(board, pos, piece), ...getCastlingMoves(board, pos, piece)]
+    case PieceTypes.KING:
+      moves = [...getKingMoves(board, pos, cell, boardSize), ...getCastlingMoves(board, pos, cell, boardSize)]
       break
   }
   
   return moves
 }
 
-export const getValidMoves = (board: Board, pos: Position, lastMove: Move | null): Position[] => {
-  const piece = board[pos.row][pos.col]
-  if (!piece) return []
+export const getValidMoves = (board: Board, pos: Position, lastMove: Move | null, boardSize: BoardSize): Position[] => {
+  const cell = board[pos.row][pos.col]
+  if (!cell || !isPiece(cell)) return []
   
-  const possibleMoves = getPieceMoves(board, pos, lastMove)
+  const possibleMoves = getPieceMoves(board, pos, lastMove, boardSize)
   const validMoves: Position[] = []
   
   for (const move of possibleMoves) {
@@ -244,7 +276,7 @@ export const getValidMoves = (board: Board, pos: Position, lastMove: Move | null
     testBoard[move.row][move.col] = testBoard[pos.row][pos.col]
     testBoard[pos.row][pos.col] = null
     
-    if (!isInCheck(testBoard, piece.color)) {
+    if (!isInCheck(testBoard, cell.color, boardSize)) {
       validMoves.push(move)
     }
   }
@@ -252,12 +284,12 @@ export const getValidMoves = (board: Board, pos: Position, lastMove: Move | null
   return validMoves
 }
 
-export const hasLegalMoves = (board: Board, color: PieceColor, lastMove: Move | null): boolean => {
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
-      const piece = board[row][col]
-      if (piece && piece.color === color) {
-        const moves = getValidMoves(board, { row, col }, lastMove)
+export const hasLegalMoves = (board: Board, color: PieceColor, lastMove: Move | null, boardSize: BoardSize): boolean => {
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[0].length; col++) {
+      const cell = board[row][col]
+      if (cell && isPiece(cell) && cell.color === color) {
+        const moves = getValidMoves(board, { row, col }, lastMove, boardSize)
         if (moves.length > 0) return true
       }
     }
@@ -270,11 +302,17 @@ export const makeMove = (
   from: Position,
   to: Position,
   lastMove: Move | null,
+  boardSize: BoardSize,
   promotionType?: PieceType
 ): { newBoard: Board; move: Move } => {
   const newBoard = cloneBoard(board)
-  const piece = newBoard[from.row][from.col]!
-  const captured = newBoard[to.row][to.col]
+  const cell = newBoard[from.row][from.col]
+  if (!cell || !isPiece(cell)) {
+    throw new Error('No piece at source position')
+  }
+  const piece = cell
+  const targetCell = newBoard[to.row][to.col]
+  const captured = targetCell && isPiece(targetCell) ? targetCell : undefined
   
   const move: Move = {
     from,
@@ -283,34 +321,44 @@ export const makeMove = (
     captured: captured ? { ...captured } : undefined
   }
   
-  if (piece.type === 'pawn') {
-    if (lastMove && lastMove.piece.type === 'pawn' && Math.abs(lastMove.from.row - lastMove.to.row) === 2) {
+  if (piece.type === PieceTypes.PAWN) {
+    if (lastMove && lastMove.piece.type === PieceTypes.PAWN && Math.abs(lastMove.from.row - lastMove.to.row) === 2) {
       if (to.col === lastMove.to.col && to.row !== lastMove.to.row) {
         if (Math.abs(from.col - lastMove.to.col) === 1 && from.row === lastMove.to.row) {
           move.isEnPassant = true
-          move.captured = newBoard[lastMove.to.row][lastMove.to.col]!
+          const epCell = newBoard[lastMove.to.row][lastMove.to.col]
+          if (epCell && isPiece(epCell)) {
+            move.captured = epCell
+          }
           newBoard[lastMove.to.row][lastMove.to.col] = null
         }
       }
     }
     
-    const promotionRow = piece.color === 'white' ? 0 : 7
+    const promotionRow = piece.color === PieceColors.WHITE ? 0 : boardSize.rows - 1
     if (to.row === promotionRow) {
-      move.promotion = promotionType || 'queen'
+      move.promotion = promotionType || PieceTypes.QUEEN
       piece.type = move.promotion
     }
   }
   
-  if (piece.type === 'king' && Math.abs(from.col - to.col) === 2) {
+  if (piece.type === PieceTypes.KING && Math.abs(from.col - to.col) === 2) {
     move.isCastling = true
-    if (to.col === 6) {
-      newBoard[to.row][5] = newBoard[to.row][7]
-      newBoard[to.row][7] = null
-      if (newBoard[to.row][5]) newBoard[to.row][5]!.hasMoved = true
-    } else if (to.col === 2) {
-      newBoard[to.row][3] = newBoard[to.row][0]
+    const kingCol = Math.floor(boardSize.cols / 2)
+    if (to.col > kingCol) {
+      newBoard[to.row][to.col - 1] = newBoard[to.row][boardSize.cols - 1]
+      newBoard[to.row][boardSize.cols - 1] = null
+      const rookCell = newBoard[to.row][to.col - 1]
+      if (rookCell && isPiece(rookCell)) {
+        rookCell.hasMoved = true
+      }
+    } else {
+      newBoard[to.row][to.col + 1] = newBoard[to.row][0]
       newBoard[to.row][0] = null
-      if (newBoard[to.row][3]) newBoard[to.row][3]!.hasMoved = true
+      const rookCell = newBoard[to.row][to.col + 1]
+      if (rookCell && isPiece(rookCell)) {
+        rookCell.hasMoved = true
+      }
     }
   }
   

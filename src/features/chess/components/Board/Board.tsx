@@ -1,9 +1,10 @@
-import type { Board as BoardType, Position, Move, HintMove } from '../../types'
-import { FILES, RANKS } from '../../constants'
+import type { Board as BoardType, Position, Move, HintMove, BoardSize } from '../../types'
+import { generateFiles, generateRanks } from '../../constants'
 import { Square } from '../Square'
 
 interface BoardProps {
   board: BoardType
+  boardSize: BoardSize
   selectedPosition: Position | null
   validMoves: Position[]
   lastMove: Move | null
@@ -13,12 +14,16 @@ interface BoardProps {
 
 export const Board = ({
   board,
+  boardSize,
   selectedPosition,
   validMoves,
   lastMove,
   hintMove,
   onSquareClick
 }: BoardProps) => {
+  const files = generateFiles(boardSize.cols)
+  const ranks = generateRanks(boardSize.rows)
+
   const isSelected = (row: number, col: number) =>
     selectedPosition?.row === row && selectedPosition?.col === col
 
@@ -36,13 +41,13 @@ export const Board = ({
       (hintMove.to.row === row && hintMove.to.col === col))
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center overflow-auto max-h-[80vh]">
       <div className="flex">
-        <div className="w-6 md:w-8" />
-        {FILES.map(file => (
+        <div className="w-5 md:w-6" />
+        {files.map(file => (
           <div
             key={file}
-            className="w-12 h-6 md:w-16 md:h-8 flex items-center justify-center text-amber-200 font-mono text-sm"
+            className="w-10 h-5 md:w-12 md:h-6 flex items-center justify-center text-amber-200 font-mono text-xs"
           >
             {file}
           </div>
@@ -51,23 +56,23 @@ export const Board = ({
 
       <div className="flex">
         <div className="flex flex-col">
-          {RANKS.map(rank => (
+          {ranks.map(rank => (
             <div
               key={rank}
-              className="w-6 h-12 md:w-8 md:h-16 flex items-center justify-center text-amber-200 font-mono text-sm"
+              className="w-5 h-10 md:w-6 md:h-12 flex items-center justify-center text-amber-200 font-mono text-xs"
             >
               {rank}
             </div>
           ))}
         </div>
 
-        <div className="border-4 border-stone-800 rounded shadow-2xl">
+        <div className="border-2 border-stone-800 rounded shadow-2xl">
           {board.map((row, rowIndex) => (
             <div key={rowIndex} className="flex">
-              {row.map((square, colIndex) => (
+              {row.map((cell, colIndex) => (
                 <Square
                   key={`${rowIndex}-${colIndex}`}
-                  square={square}
+                  cell={cell}
                   position={{ row: rowIndex, col: colIndex }}
                   isSelected={isSelected(rowIndex, colIndex)}
                   isValidMove={isValidMove(rowIndex, colIndex)}
@@ -81,10 +86,10 @@ export const Board = ({
         </div>
 
         <div className="flex flex-col">
-          {RANKS.map(rank => (
+          {ranks.map(rank => (
             <div
               key={rank}
-              className="w-6 h-12 md:w-8 md:h-16 flex items-center justify-center text-amber-200 font-mono text-sm"
+              className="w-5 h-10 md:w-6 md:h-12 flex items-center justify-center text-amber-200 font-mono text-xs"
             >
               {rank}
             </div>
@@ -93,11 +98,11 @@ export const Board = ({
       </div>
 
       <div className="flex">
-        <div className="w-6 md:w-8" />
-        {FILES.map(file => (
+        <div className="w-5 md:w-6" />
+        {files.map(file => (
           <div
             key={file}
-            className="w-12 h-6 md:w-16 md:h-8 flex items-center justify-center text-amber-200 font-mono text-sm"
+            className="w-10 h-5 md:w-12 md:h-6 flex items-center justify-center text-amber-200 font-mono text-xs"
           >
             {file}
           </div>
