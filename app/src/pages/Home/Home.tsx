@@ -4,6 +4,7 @@ import { User, Users, Plus, LogIn } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { GameModes } from '../../constants'
 import type { GameMode } from '../../constants'
+import { environments } from '../../config/environments'
 
 export const Home = () => {
     const navigate = useNavigate()
@@ -24,7 +25,7 @@ export const Home = () => {
             <div className="w-full max-w-lg">
                 <div className="bg-stone-800/60 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-stone-700/50">
                     <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 bg-clip-text text-transparent">
-                        Selinutes
+                        {environments.APP_NAME}
                     </h1>
                     <p className="text-stone-400 text-center mb-8">
                         Welcome, <span className="text-amber-400 font-medium">{username}</span>

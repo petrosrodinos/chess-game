@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import { environments } from '../../config/environments'
 
 export const Login = () => {
     const [username, setUsername] = useState('')
@@ -24,7 +25,7 @@ export const Login = () => {
             <div className="w-full max-w-md">
                 <div className="bg-stone-800/60 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-stone-700/50">
                     <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 bg-clip-text text-transparent">
-                        Selinutes
+                        {environments.APP_NAME}
                     </h1>
                     <p className="text-stone-400 text-center mb-8">Enter the battlefield</p>
                     

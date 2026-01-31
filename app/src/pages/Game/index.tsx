@@ -10,6 +10,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
 import { PlayerColors } from './types'
 import { BOT_DELAY } from './constants'
+import { environments } from '../../config/environments'
 
 export const Game = () => {
   const { gameState, botEnabled, botDifficulty, botThinking, processBotMove } = useGameStore()
@@ -33,7 +34,7 @@ export const Game = () => {
     <div className="min-h-screen bg-gradient-to-br from-stone-900 via-stone-800 to-emerald-950 p-4">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 bg-clip-text text-transparent">
-          Selinutes
+          {environments.APP_NAME}
         </h1>
 
         <div className="lg:hidden mb-4">
