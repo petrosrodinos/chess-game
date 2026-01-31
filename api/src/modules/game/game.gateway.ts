@@ -18,7 +18,7 @@ import { SyncGameDto } from './dto/sync-game.dto'
 
 @WebSocketGateway({
     cors: {
-        origin: '*',
+        origin: process.env.APP_URL,
         credentials: true
     }
 })
@@ -27,6 +27,7 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
     server: Server
 
     private readonly logger = new Logger(GameGateway.name)
+    private clientGameMap = new Map<string, string>()
 
     constructor(private readonly gameService: GameService) {
         this.logger.log('GameGateway initialized')
@@ -36,9 +37,25 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
         this.logger.log(`Client connected: ${client.id}`)
     }
 
-    handleDisconnect(client: Socket): void {
+    async handleDisconnect(client: Socket): Promise<void> {
         this.logger.log(`Client disconnected: ${client.id}`)
+
+        const gameCode = this.clientGameMap.get(client.id)
+        if (!gameCode) return
+
+
+        const room = this.server.sockets.adapter.rooms.get(gameCode)
+        const roomSize = room?.size ?? 0
+
+        this.logger.log(`Room ${gameCode} has ${roomSize} clients remaining`)
+
+        if (roomSize === 0) {
+            this.logger.log(`Deleting empty game: ${gameCode}`)
+            await this.gameService.deleteGame(gameCode)
+        }
     }
+
+
 
     @SubscribeMessage(SocketEvents.CREATE_GAME)
     async handleCreateGame(
@@ -50,6 +67,7 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
             const gameSession = await this.gameService.createGame(payload)
 
             await client.join(gameSession.code)
+            this.trackClientGame(client.id, gameSession.code)
 
             this.logger.log(`Game created: ${gameSession.code} by ${payload.playerName}`)
 
@@ -70,6 +88,7 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
             const gameSession = await this.gameService.joinGame(payload)
 
             await client.join(gameSession.code)
+            this.trackClientGame(client.id, gameSession.code)
 
             this.logger.log(`Player ${payload.playerName} joined game: ${gameSession.code}`)
 
@@ -95,6 +114,7 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
             const gameSession = await this.gameService.getGame(payload)
 
             await client.join(gameSession.code)
+            this.trackClientGame(client.id, gameSession.code)
 
             this.logger.log(`Player fetched game: ${gameSession.code}`)
 
@@ -111,7 +131,6 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
         @ConnectedSocket() client: Socket,
         @MessageBody() payload: SyncGameDto
     ): Promise<void> {
-        this.logger.log(`[SYNC_GAME] Received from ${client.id}: ${JSON.stringify(payload)}`)
         try {
             const gameSession = await this.gameService.updateGameState(
                 payload.code,
@@ -125,5 +144,9 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
             this.logger.error(`Error syncing game: ${error.message}`)
             client.emit(SocketEvents.ERROR, { message: error.message })
         }
+    }
+
+    private trackClientGame(clientId: string, gameCode: string): void {
+        this.clientGameMap.set(clientId, gameCode)
     }
 }

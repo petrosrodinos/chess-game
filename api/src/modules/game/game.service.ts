@@ -135,6 +135,10 @@ export class GameService {
         return updatedGameSession
     }
 
+    async deleteGame(code: string): Promise<void> {
+        await this.cacheService.delete(getGameKey(code))
+    }
+
     private async getGameSession(code: string): Promise<GameSession | undefined> {
         return this.cacheService.get<GameSession>(getGameKey(code))
     }

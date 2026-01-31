@@ -18,7 +18,6 @@ interface TopMenuProps {
 
 export const TopMenu = ({
     isOnline = false,
-    gameCode,
     players = [],
     currentPlayer,
     currentTurnPlayer,
@@ -79,24 +78,21 @@ export const TopMenu = ({
 
     const getStatusColor = () => {
         if (gameOver) {
-            return 'bg-rose-600'
+            return 'bg-rose-600 text-white'
         }
-        if (isOnline && isMyTurn) {
-            return 'bg-emerald-600'
+        const currentColor = isOnline ? currentTurnPlayer?.color : gameState.currentPlayer
+        if (currentColor === PlayerColors.WHITE) {
+            return 'bg-white text-stone-900 border border-stone-300'
         }
-        if (isOnline && !isMyTurn) {
-            return 'bg-amber-600'
-        }
-        return 'bg-emerald-600'
+        return 'bg-stone-900 text-white border border-stone-600'
     }
 
     return (
         <div className="bg-stone-800/80 backdrop-blur rounded-xl p-3 border border-stone-700">
             <div className="flex flex-wrap items-end gap-4 justify-center">
                 {isOnline && (
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-white border border-stone-600" />
                             <span className="text-stone-200 text-sm font-medium">
                                 {whitePlayer?.name || 'Waiting...'}
                             </span>
@@ -106,7 +102,6 @@ export const TopMenu = ({
                         </div>
                         <span className="text-stone-500">vs</span>
                         <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-stone-900 border border-stone-600" />
                             <span className="text-stone-200 text-sm font-medium">
                                 {blackPlayer?.name || 'Waiting...'}
                             </span>
@@ -117,15 +112,22 @@ export const TopMenu = ({
                     </div>
                 )}
 
-                <div className={`px-3 py-1.5 rounded-lg text-sm font-medium text-white ${getStatusColor()}`}>
+                <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${getStatusColor()}`}>
                     {getStatusText()}
                 </div>
 
-                {isOnline && gameCode && (
-                    <div className="text-stone-500 text-xs">
-                        Code: <span className="text-amber-400 font-mono">{gameCode}</span>
+                <div className="flex flex-col items-center gap-1">
+                    <span className="text-xs font-medium text-amber-200">View</span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={toggle3D}
+                            className={`relative w-14 h-7 rounded-full transition-colors duration-200 overflow-hidden ${is3D ? 'bg-violet-600' : 'bg-stone-600'}`}
+                        >
+                            <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${is3D ? 'translate-x-7' : 'translate-x-0'}`} />
+                        </button>
+                        <span className="text-xs text-stone-300">{is3D ? '3D' : '2D'}</span>
                     </div>
-                )}
+                </div>
 
                 {!isOnline && (
                     <>
@@ -140,19 +142,6 @@ export const TopMenu = ({
                                 <option value={BoardSizeKeys.MEDIUM}>Medium (12×16)</option>
                                 <option value={BoardSizeKeys.LARGE}>Large (12×20)</option>
                             </select>
-                        </div>
-
-                        <div className="flex flex-col items-center gap-1">
-                            <span className="text-xs font-medium text-amber-200">View</span>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={toggle3D}
-                                    className={`relative w-14 h-7 rounded-full transition-colors duration-200 overflow-hidden ${is3D ? 'bg-violet-600' : 'bg-stone-600'}`}
-                                >
-                                    <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${is3D ? 'translate-x-7' : 'translate-x-0'}`} />
-                                </button>
-                                <span className="text-xs text-stone-300">{is3D ? '3D' : '2D'}</span>
-                            </div>
                         </div>
 
                         {showBot && (

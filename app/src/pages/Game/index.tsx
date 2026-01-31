@@ -134,8 +134,8 @@ export const Game = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-1 items-start justify-center">
-                    <div className="flex flex-col items-center w-full">
+                <div className="flex flex-col lg:flex-row gap-2 items-start justify-center">
+                    <div className="flex flex-col items-center">
                         <div className="hidden lg:block mb-2">
                             <TopMenu
                                 isOnline={isOnline}
@@ -173,10 +173,10 @@ export const Game = () => {
                             />
                         )}
 
-                        <BottomMenu />
+                        {!isOnline && <BottomMenu />}
                     </div>
 
-                    <div className="hidden lg:block w-full lg:w-64 flex-shrink-0">
+                    <div className="hidden lg:block flex-shrink-0">
                         <RightSidebar
                             isOnline={isOnline}
                             onlineBoardSize={onlineBoardSize}
