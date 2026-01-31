@@ -20,7 +20,7 @@ export const useUIStore = create<UIStore>((set) => ({
     is3D: true,
     isTopMenuOpen: false,
     isRightMenuOpen: false,
-    helpEnabled: false,
+    helpEnabled: true,
     devMode: false,
 
     toggle3D: () => set((state) => ({ is3D: !state.is3D })),

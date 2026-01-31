@@ -73,9 +73,9 @@ export const Board = () => {
       const cell = board[row][col]
       if (cell && isPiece(cell)) {
         setHelpPosition({ row, col })
-        return
+      } else {
+        setHelpPosition(null)
       }
-      setHelpPosition(null)
     }
     selectSquare({ row, col })
   }

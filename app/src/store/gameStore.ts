@@ -1,7 +1,7 @@
 import { create } from 'zustand'
-import type { GameState, Position, BotDifficulty, HintMove, BoardSizeKey, PlayerColor, CellContent } from '../features/chess/types'
-import { isPiece, isObstacle, BOARD_SIZES, PlayerColors, BotDifficulties, BoardSizeKeys } from '../features/chess/types'
-import { DEFAULT_BOARD_SIZE } from '../features/chess/constants'
+import type { GameState, Position, BotDifficulty, HintMove, BoardSizeKey, PlayerColor, CellContent } from '../pages/Game/types'
+import { isPiece, isObstacle, BOARD_SIZES, PlayerColors, BotDifficulties, BoardSizeKeys } from '../pages/Game/types'
+import { DEFAULT_BOARD_SIZE } from '../pages/Game/constants'
 import {
     createInitialBoard,
     getValidMoves,
@@ -11,7 +11,7 @@ import {
     isMonarchCaptured,
     getBotMove,
     getHintMove
-} from '../features/chess/utils'
+} from '../pages/Game/utils'
 
 interface HistoryEntry {
     gameState: GameState
@@ -204,12 +204,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         if (devModeSelected) {
             const selectedCell = gameState.board[devModeSelected.row][devModeSelected.col]
-            
+
             if (cell === null && selectedCell !== null) {
                 const newBoard = gameState.board.map(row => [...row])
                 newBoard[pos.row][pos.col] = selectedCell
                 newBoard[devModeSelected.row][devModeSelected.col] = null as CellContent
-                
+
                 set({
                     gameState: {
                         ...gameState,

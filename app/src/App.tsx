@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
-import { Board, Board3D, TopMenu, BottomMenu, RightSidebar } from './features/chess'
+import { Settings, Info } from 'lucide-react'
+import { Board, Board3D, TopMenu, BottomMenu, RightSidebar } from './pages/Game'
 import { Modal } from './components/Modal'
 import { useGameStore } from './store/gameStore'
 import { useUIStore } from './store/uiStore'
-import { PlayerColors } from './features/chess/types'
-import { BOT_DELAY } from './features/chess/constants'
+import { PlayerColors } from './pages/Game/types'
+import { BOT_DELAY } from './pages/Game/constants'
 
 function App() {
   const { gameState, botEnabled, botDifficulty, botThinking, processBotMove } = useGameStore()
@@ -67,19 +68,14 @@ function App() {
             className="bg-amber-600 hover:bg-amber-700 text-white rounded-full p-3 shadow-lg transition-colors"
             aria-label="Open game settings"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            <Settings className="w-6 h-6" />
           </button>
           <button
             onClick={openRightMenu}
             className="bg-violet-600 hover:bg-violet-700 text-white rounded-full p-3 shadow-lg transition-colors"
             aria-label="Open game info"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Info className="w-6 h-6" />
           </button>
         </div>
 
