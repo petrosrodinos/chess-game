@@ -1,15 +1,8 @@
 @import "tailwindcss";
-
-@font-face {
-  font-family: 'Playfair Display';
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-  src: url(https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKd3vUDQZNLo_U2r.woff2) format('woff2');
-}
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap');
 
 body {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
   margin: 0;
   padding: 0;
 }
