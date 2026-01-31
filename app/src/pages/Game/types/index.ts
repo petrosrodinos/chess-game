@@ -90,8 +90,8 @@ export type BoardSize = { rows: number; cols: number }
 
 export const BOARD_SIZES: Record<BoardSizeKey, BoardSize> = {
   [BoardSizeKeys.SMALL]: { rows: 12, cols: 12 },
-  [BoardSizeKeys.MEDIUM]: { rows: 12, cols: 16 },
-  [BoardSizeKeys.LARGE]: { rows: 12, cols: 20 }
+  [BoardSizeKeys.MEDIUM]: { rows: 16, cols: 12 },
+  [BoardSizeKeys.LARGE]: { rows: 20, cols: 12 }
 } as const
 
 export type Board = CellContent[][]

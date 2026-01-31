@@ -2,6 +2,7 @@ import { Suspense, useMemo, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { isPiece, isObstacle } from '../../types'
+import type { Board as BoardType, BoardSize, Position, Move } from '../../types'
 import { Piece3D } from './Piece3D'
 import { BoardSquare3D } from './BoardSquare3D'
 import { Obstacle3D } from './Obstacle3D'
@@ -9,17 +10,43 @@ import { useGameStore } from '../../../../store/gameStore'
 import { useUIStore } from '../../../../store/uiStore'
 import { getValidMoves, getValidAttacks } from '../../utils'
 
-const GameScene = () => {
+interface GameSceneProps {
+  isOnline?: boolean
+  onlineBoard?: BoardType
+  onlineBoardSize?: BoardSize
+  onlineSelectedPosition?: Position | null
+  onlineValidMoves?: Position[]
+  onlineValidAttacks?: Position[]
+  onlineLastMove?: Move | null
+  onSquareClick?: (pos: Position) => void
+}
+
+const GameScene = ({
+  isOnline = false,
+  onlineBoard,
+  onlineBoardSize,
+  onlineSelectedPosition,
+  onlineValidMoves = [],
+  onlineValidAttacks = [],
+  onlineLastMove,
+  onSquareClick
+}: GameSceneProps) => {
   const { gameState, hintMove, selectSquare, devModeSelectSquare, devModeSelected } = useGameStore()
-  const { board, boardSize, selectedPosition, validMoves, validAttacks, lastMove } = gameState
   const { helpEnabled, devMode } = useUIStore()
+
+  const board = isOnline && onlineBoard ? onlineBoard : gameState.board
+  const boardSize = isOnline && onlineBoardSize ? onlineBoardSize : gameState.boardSize
+  const selectedPosition = isOnline ? onlineSelectedPosition : gameState.selectedPosition
+  const validMoves = isOnline ? onlineValidMoves : gameState.validMoves
+  const validAttacks = isOnline ? onlineValidAttacks : gameState.validAttacks
+  const lastMove = isOnline ? onlineLastMove : gameState.lastMove
+  const currentHintMove = isOnline ? null : hintMove
   
-  // Help mode: show moves for any clicked piece
   const [helpPosition, setHelpPosition] = useState<{ row: number; col: number } | null>(null)
-  const helpMoves = helpPosition && helpEnabled
+  const helpMoves = helpPosition && helpEnabled && !isOnline
     ? getValidMoves(board, helpPosition, boardSize)
     : []
-  const helpAttacks = helpPosition && helpEnabled
+  const helpAttacks = helpPosition && helpEnabled && !isOnline
     ? getValidAttacks(board, helpPosition, boardSize)
     : []
   const { rows, cols } = boardSize
@@ -32,14 +59,14 @@ const GameScene = () => {
   }, [rows, cols])
 
   const isSelected = (row: number, col: number) => {
-    if (devMode && devModeSelected) {
+    if (!isOnline && devMode && devModeSelected) {
       return devModeSelected.row === row && devModeSelected.col === col
     }
     return selectedPosition?.row === row && selectedPosition?.col === col
   }
 
   const isDevModeTarget = (row: number, col: number) => {
-    if (!devMode || !devModeSelected) return false
+    if (isOnline || !devMode || !devModeSelected) return false
     const cell = board[row][col]
     return cell === null
   }
@@ -50,31 +77,36 @@ const GameScene = () => {
   const isValidAttack = (row: number, col: number) =>
     validAttacks.some(a => a.row === row && a.col === col)
 
-  const isLastMove = (row: number, col: number) =>
-    lastMove !== null &&
+  const isLastMoveSquare = (row: number, col: number) =>
+    lastMove != null &&
     ((lastMove.from.row === row && lastMove.from.col === col) ||
       (lastMove.to.row === row && lastMove.to.col === col))
 
   const isHintSquare = (row: number, col: number) =>
-    hintMove !== null && !hintMove.isAttack &&
-    ((hintMove.from.row === row && hintMove.from.col === col) ||
-      (hintMove.to.row === row && hintMove.to.col === col))
+    currentHintMove !== null && !currentHintMove.isAttack &&
+    ((currentHintMove.from.row === row && currentHintMove.from.col === col) ||
+      (currentHintMove.to.row === row && currentHintMove.to.col === col))
 
   const isHintAttackSquare = (row: number, col: number) =>
-    hintMove !== null && hintMove.isAttack === true &&
-    ((hintMove.from.row === row && hintMove.from.col === col) ||
-      (hintMove.to.row === row && hintMove.to.col === col))
+    currentHintMove !== null && currentHintMove.isAttack === true &&
+    ((currentHintMove.from.row === row && currentHintMove.from.col === col) ||
+      (currentHintMove.to.row === row && currentHintMove.to.col === col))
 
   const isHintPiece = (row: number, col: number) =>
-    hintMove !== null && hintMove.from.row === row && hintMove.from.col === col
+    currentHintMove !== null && currentHintMove.from.row === row && currentHintMove.from.col === col
 
   const isHelpMove = (row: number, col: number) =>
-    helpEnabled && helpMoves.some(m => m.row === row && m.col === col)
+    !isOnline && helpEnabled && helpMoves.some(m => m.row === row && m.col === col)
 
   const isHelpAttack = (row: number, col: number) =>
-    helpEnabled && helpAttacks.some(a => a.row === row && a.col === col)
+    !isOnline && helpEnabled && helpAttacks.some(a => a.row === row && a.col === col)
 
   const handleSquareClick = (row: number, col: number) => {
+    if (isOnline && onSquareClick) {
+      onSquareClick({ row, col })
+      return
+    }
+
     if (devMode) {
       devModeSelectSquare({ row, col })
       return
@@ -128,7 +160,7 @@ const GameScene = () => {
               isLight={isLight}
               isValidMove={isValidMove(rowIndex, colIndex) || isHelpMove(rowIndex, colIndex) || isDevModeTarget(rowIndex, colIndex)}
               isValidAttack={isValidAttack(rowIndex, colIndex) || isHelpAttack(rowIndex, colIndex)}
-              isLastMove={isLastMove(rowIndex, colIndex)}
+              isLastMove={isLastMoveSquare(rowIndex, colIndex)}
               isHint={isHintSquare(rowIndex, colIndex)}
               isHintAttack={isHintAttackSquare(rowIndex, colIndex)}
               isObstacle={!!hasObstacle}
@@ -176,9 +208,29 @@ const GameScene = () => {
   )
 }
 
-export const Board3D = () => {
+interface Board3DProps {
+  isOnline?: boolean
+  onlineBoard?: BoardType
+  onlineBoardSize?: BoardSize
+  onlineSelectedPosition?: Position | null
+  onlineValidMoves?: Position[]
+  onlineValidAttacks?: Position[]
+  onlineLastMove?: Move | null
+  onSquareClick?: (pos: Position) => void
+}
+
+export const Board3D = ({
+  isOnline = false,
+  onlineBoard,
+  onlineBoardSize,
+  onlineSelectedPosition,
+  onlineValidMoves = [],
+  onlineValidAttacks = [],
+  onlineLastMove,
+  onSquareClick
+}: Board3DProps) => {
   const { gameState } = useGameStore()
-  const { boardSize } = gameState
+  const boardSize = isOnline && onlineBoardSize ? onlineBoardSize : gameState.boardSize
   const maxDim = Math.max(boardSize.rows, boardSize.cols)
   const cameraY = maxDim * 0.75
   const cameraZ = maxDim * 0.6
@@ -193,7 +245,16 @@ export const Board3D = () => {
       >
         <color attach="background" args={['#1f2937']} />
         <Suspense fallback={null}>
-          <GameScene />
+          <GameScene
+            isOnline={isOnline}
+            onlineBoard={onlineBoard}
+            onlineBoardSize={onlineBoardSize}
+            onlineSelectedPosition={onlineSelectedPosition}
+            onlineValidMoves={onlineValidMoves}
+            onlineValidAttacks={onlineValidAttacks}
+            onlineLastMove={onlineLastMove}
+            onSquareClick={onSquareClick}
+          />
         </Suspense>
       </Canvas>
     </div>

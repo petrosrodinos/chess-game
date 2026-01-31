@@ -7,6 +7,9 @@ import type { GameMode } from '../../constants'
 import { environments } from '../../config/environments'
 import { useSocket } from '../../hooks'
 import { toast } from 'react-toastify'
+import { createInitialBoard } from '../Game/utils'
+import {  BOARD_SIZES, BoardSizeKeys } from '../Game/types'
+import type { BoardSizeKey } from '../Game/types'
 
 interface GameSession {
     code: string
@@ -16,6 +19,7 @@ interface GameSession {
 
 export const Home = () => {
     const navigate = useNavigate()
+    const userId = useAuthStore(state => state.userId)
     const username = useAuthStore(state => state.username)
     const logout = useAuthStore(state => state.logout)
     const [gameCode, setGameCode] = useState<string | null>(null)
@@ -68,9 +72,16 @@ export const Home = () => {
     }, [navigate])
 
     const handleCreateGame = useCallback(() => {
+        if (!userId) return
         setIsCreating(true)
-        emit(SocketEvents.CREATE_GAME, { playerName: username || '' })
-    }, [emit, username])
+        const boardSizeKey: BoardSizeKey = BoardSizeKeys.SMALL
+        const boardSize = BOARD_SIZES[boardSizeKey]
+        const board = createInitialBoard(boardSize)
+        const gameState = {
+            board
+        }
+        emit(SocketEvents.CREATE_GAME, { playerId: userId, playerName: username || '', gameState })
+    }, [emit, userId, username])
 
     const handleToggleJoinMenu = useCallback(() => {
         setShowJoinMenu(prev => !prev)
@@ -79,10 +90,10 @@ export const Home = () => {
     }, [])
 
     const handleJoinGame = useCallback(() => {
-        if (!joinCode.trim()) return
+        if (!joinCode.trim() || !userId) return
         setIsJoining(true)
-        emit(SocketEvents.JOIN_GAME, { code: joinCode.trim(), playerName: username || '' })
-    }, [emit, joinCode, username])
+        emit(SocketEvents.JOIN_GAME, { code: joinCode.trim(), playerId: userId, playerName: username || '' })
+    }, [emit, joinCode, userId, username])
 
     const handleCopyLink = useCallback(async () => {
         if (!gameLink) return

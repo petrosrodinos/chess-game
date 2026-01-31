@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { Socket } from 'socket.io-client'
-import { connectSocket, disconnectSocket } from '../lib/socket'
+import { connectSocket } from '../lib/socket'
 
 interface UseSocketReturn {
     socket: Socket | null
@@ -15,7 +15,8 @@ export const useSocket = (): UseSocketReturn => {
     const [isConnected, setIsConnected] = useState(false)
 
     useEffect(() => {
-        socketRef.current = connectSocket()
+        const socket = connectSocket()
+        socketRef.current = socket
 
         const handleConnect = (): void => {
             setIsConnected(true)
@@ -25,17 +26,16 @@ export const useSocket = (): UseSocketReturn => {
             setIsConnected(false)
         }
 
-        socketRef.current.on('connect', handleConnect)
-        socketRef.current.on('disconnect', handleDisconnect)
+        socket.on('connect', handleConnect)
+        socket.on('disconnect', handleDisconnect)
 
-        if (socketRef.current.connected) {
+        if (socket.connected) {
             setIsConnected(true)
         }
 
         return () => {
-            socketRef.current?.off('connect', handleConnect)
-            socketRef.current?.off('disconnect', handleDisconnect)
-            disconnectSocket()
+            socket.off('connect', handleConnect)
+            socket.off('disconnect', handleDisconnect)
         }
     }, [])
 

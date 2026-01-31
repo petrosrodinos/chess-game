@@ -2,8 +2,9 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { CacheService } from '@/shared/services/cache/cache.service'
 import { CreateGameDto } from './dto/create-game.dto'
 import { JoinGameDto } from './dto/join-game.dto'
+import { GetGameDto } from './dto/get-game.dto'
 import {
-    GameSession,
+    GameSession
 } from './interfaces/game.interface'
 import {
     BOARD_SIZES,
@@ -14,7 +15,6 @@ import {
     PlayerColors
 } from './constants/game.constants'
 import { generateGameCode, getGameKey } from './helpers/game.helper'
-import { v4 as uuid } from 'uuid'
 
 @Injectable()
 export class GameService {
@@ -22,8 +22,17 @@ export class GameService {
 
     async createGame(dto: CreateGameDto): Promise<GameSession> {
         const code = generateGameCode()
-        const playerId = uuid()
-        const boardSizeKey: BoardSizeKey = dto.boardSizeKey || BoardSizeKeys.SMALL
+        const boardSizeKey: BoardSizeKey = dto?.boardSizeKey || BoardSizeKeys.SMALL
+
+        const gameState = {
+            board: dto.gameState?.board,
+            currentPlayer: PlayerColors.WHITE,
+            moveHistory: [],
+            capturedPieces: { white: [], black: [] },
+            lastMove: null,
+            gameOver: false,
+            winner: null
+        }
 
         const gameSession: GameSession = {
             code,
@@ -32,20 +41,20 @@ export class GameService {
             status: GameStatuses.WAITING,
             players: [
                 {
-                    id: playerId,
+                    id: dto.playerId,
                     name: dto.playerName,
                     color: PlayerColors.WHITE,
                     joinedAt: new Date()
                 }
             ],
-            currentPlayer: PlayerColors.WHITE,
             createdAt: new Date(),
-            hostPlayerId: playerId
+            hostPlayerId: dto.playerId,
+            gameState
         }
 
         await this.cacheService.set(getGameKey(code), gameSession, GAME_TTL)
 
-        return gameSession;
+        return gameSession
     }
 
     async joinGame(dto: JoinGameDto): Promise<GameSession> {
@@ -63,15 +72,13 @@ export class GameService {
             throw new BadRequestException('Game is full')
         }
 
-        const playerId = uuid()
-
         const updatedGameSession: GameSession = {
             ...gameSession,
             status: GameStatuses.IN_PROGRESS,
             players: [
                 ...gameSession.players,
                 {
-                    id: playerId,
+                    id: dto.playerId,
                     name: dto.playerName,
                     color: PlayerColors.BLACK,
                     joinedAt: new Date()
@@ -85,17 +92,47 @@ export class GameService {
             GAME_TTL
         )
 
-        return updatedGameSession;
+        return updatedGameSession
     }
 
-    async getGame(code: string): Promise<GameSession> {
+    async getGame(dto: GetGameDto): Promise<GameSession> {
+        const gameSession = await this.getGameSession(dto.code)
+
+        if (!gameSession) {
+            throw new NotFoundException('Game not found')
+        }
+
+        return gameSession
+    }
+
+    async updateGameState(code: string, gameState: GameSession['gameState']): Promise<GameSession> {
         const gameSession = await this.getGameSession(code)
 
         if (!gameSession) {
             throw new NotFoundException('Game not found')
         }
 
-        return gameSession;
+        const updatedGameSession: GameSession = {
+            ...gameSession,
+            gameState: {
+                board: gameState?.board,
+                currentPlayer: gameState?.currentPlayer,
+                moveHistory: gameState?.moveHistory,
+                capturedPieces: gameState?.capturedPieces,
+                lastMove: gameState?.lastMove,
+                gameOver: gameState?.gameOver,
+                winner: gameState?.winner
+            },
+            status: gameState?.gameOver ? GameStatuses.FINISHED : gameSession.status
+        }
+
+        await this.cacheService.set(
+            getGameKey(code),
+            updatedGameSession,
+            GAME_TTL
+        )
+
+        return updatedGameSession
     }
 
     private async getGameSession(code: string): Promise<GameSession | undefined> {

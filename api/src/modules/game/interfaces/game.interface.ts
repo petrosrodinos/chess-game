@@ -17,13 +17,28 @@ export interface Player {
     joinedAt: Date
 }
 
+export interface GameBoardState {
+    board: unknown[][]
+    currentPlayer: PlayerColor
+    moveHistory: unknown[]
+    capturedPieces: { white: unknown[]; black: unknown[] }
+    lastMove: unknown | null
+    gameOver: boolean
+    winner: PlayerColor | null
+}
+
 export interface GameSession {
     code: string
     boardSizeKey: BoardSizeKey
     boardSize: BoardSize
     status: GameStatus
     players: Player[]
-    currentPlayer: PlayerColor
     createdAt: Date
     hostPlayerId: string
+    gameState?: GameBoardState
+}
+
+export interface GetGamePayload {
+    code: string
+    playerId?: string
 }

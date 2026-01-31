@@ -7,6 +7,10 @@ export class JoinGameDto {
     @Length(6, 6)
     code: string
 
+    @ApiProperty({ description: 'Player ID' })
+    @IsString()
+    playerId: string
+
     @ApiProperty({ description: 'Player name', example: 'Player2' })
     @IsString()
     playerName: string

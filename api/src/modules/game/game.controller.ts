@@ -34,6 +34,6 @@ export class GameController {
     @ApiResponse({ status: HttpStatus.OK, description: 'Game info retrieved successfully' })
     @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Game not found' })
     getGame(@Param('code') code: string): Promise<GameSession> {
-        return this.gameService.getGame(code)
+        return this.gameService.getGame({ code })
     }
 }

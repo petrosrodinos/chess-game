@@ -1,9 +1,11 @@
+import type { Board, Piece, Move, PlayerColor } from '../../../pages/Game/types'
+
 export const PlayerColors = {
     WHITE: 'white',
     BLACK: 'black'
 } as const
 
-export type PlayerColor = typeof PlayerColors[keyof typeof PlayerColors]
+export type { PlayerColor }
 
 export const BoardSizeKeys = {
     SMALL: '12x12',
@@ -32,16 +34,21 @@ export const BOARD_SIZES: Record<BoardSizeKey, BoardSize> = {
     [BoardSizeKeys.LARGE]: { rows: 12, cols: 20 }
 }
 
-export interface Position {
-    row: number
-    col: number
-}
-
 export interface Player {
     id: string
     name: string
     color: PlayerColor
     joinedAt: Date
+}
+
+export interface GameBoardState {
+    board: Board
+    currentPlayer: PlayerColor
+    moveHistory: Move[]
+    capturedPieces: { white: Piece[]; black: Piece[] }
+    lastMove: Move | null
+    gameOver: boolean
+    winner: PlayerColor | null
 }
 
 export interface GameSession {
@@ -50,9 +57,9 @@ export interface GameSession {
     boardSize: BoardSize
     status: GameStatus
     players: Player[]
-    currentPlayer: PlayerColor
     createdAt: Date
     hostPlayerId: string
+    gameState?: GameBoardState
 }
 
 export interface CreateGameRequest {
@@ -63,4 +70,14 @@ export interface CreateGameRequest {
 export interface JoinGameRequest {
     code: string
     playerName: string
+}
+
+export interface GetGameRequest {
+    code: string
+    playerId?: string
+}
+
+export interface SyncGameRequest {
+    code: string
+    gameState: GameBoardState
 }
