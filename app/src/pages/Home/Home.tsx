@@ -1,11 +1,18 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Users, Plus, LogIn, Copy, Check } from 'lucide-react'
+import { User, Users, Plus, LogIn, Copy, Check, Loader2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
-import { GameModes } from '../../constants'
+import { GameModes, SocketEvents } from '../../constants'
 import type { GameMode } from '../../constants'
 import { environments } from '../../config/environments'
-import { useCreateGame, useJoinGame } from '../../features/game/hooks'
+import { useSocket } from '../../hooks'
+import { toast } from 'react-toastify'
+
+interface GameSession {
+    code: string
+    players: Array<{ id: string; name: string }>
+    status: string
+}
 
 export const Home = () => {
     const navigate = useNavigate()
@@ -16,43 +23,66 @@ export const Home = () => {
     const [copiedCode, setCopiedCode] = useState(false)
     const [showJoinMenu, setShowJoinMenu] = useState(false)
     const [joinCode, setJoinCode] = useState('')
-    const { mutate: createGame, isPending: isCreating } = useCreateGame()
-    const { mutate: joinGame, isPending: isJoining } = useJoinGame()
+    const [isCreating, setIsCreating] = useState(false)
+    const [isJoining, setIsJoining] = useState(false)
+    const [isWaiting, setIsWaiting] = useState(false)
+    const { emit, on, off } = useSocket()
 
     const gameLink = gameCode ? `${environments.APP_URL}/game?code=${gameCode}` : null
+
+    useEffect(() => {
+        on<GameSession>(SocketEvents.CREATE_GAME, (data: GameSession) => {
+            setGameCode(data.code)
+            setShowJoinMenu(false)
+            setIsCreating(false)
+            setIsWaiting(true)
+        })
+
+        on<GameSession>(SocketEvents.PLAYER_JOINED, (data: GameSession) => {
+            if (data.players.length === 2) {
+                setIsWaiting(false)
+            }
+        })
+
+        on<GameSession>(SocketEvents.GAME_START, (data: GameSession) => {
+            navigate(`/game?code=${data.code}&mode=${GameModes.ONLINE}`)
+        })
+
+        on<{ message: string }>(SocketEvents.ERROR, (data: { message: string }) => {
+            setIsCreating(false)
+            setIsJoining(false)
+            setIsWaiting(false)
+            toast.error(data.message)
+        })
+
+        return () => {
+            off(SocketEvents.CREATE_GAME)
+            off(SocketEvents.PLAYER_JOINED)
+            off(SocketEvents.GAME_START)
+            off(SocketEvents.ERROR)
+        }
+    }, [on, off, navigate])
 
     const handleModeSelect = useCallback((mode: GameMode) => {
         navigate(`/game?mode=${mode}`)
     }, [navigate])
 
     const handleCreateGame = useCallback(() => {
-        createGame(
-            { playerName: username || '' },
-            {
-                onSuccess: (data) => {
-                    setGameCode(data.code)
-                    setShowJoinMenu(false)
-                },
-            }
-        )
-    }, [createGame, username])
+        setIsCreating(true)
+        emit(SocketEvents.CREATE_GAME, { playerName: username || '' })
+    }, [emit, username])
 
     const handleToggleJoinMenu = useCallback(() => {
         setShowJoinMenu(prev => !prev)
         setGameCode(null)
+        setIsWaiting(false)
     }, [])
 
     const handleJoinGame = useCallback(() => {
         if (!joinCode.trim()) return
-        joinGame(
-            { code: joinCode.trim(), playerName: username || '' },
-            {
-                onSuccess: (data) => {
-                    navigate(`/game?code=${data.code}`)
-                },
-            }
-        )
-    }, [joinGame, joinCode, username, navigate])
+        setIsJoining(true)
+        emit(SocketEvents.JOIN_GAME, { code: joinCode.trim(), playerName: username || '' })
+    }, [emit, joinCode, username])
 
     const handleCopyLink = useCallback(async () => {
         if (!gameLink) return
@@ -113,10 +143,14 @@ export const Home = () => {
                             <button
                                 type="button"
                                 onClick={handleCreateGame}
-                                disabled={isCreating}
+                                disabled={isCreating || isWaiting}
                                 className="py-4 px-4 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-900 font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-amber-500/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <Plus className="w-5 h-5" />
+                                {isCreating ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <Plus className="w-5 h-5" />
+                                )}
                                 {isCreating ? 'Creating...' : 'Create Game'}
                             </button>
 
@@ -145,8 +179,9 @@ export const Home = () => {
                                         type="button"
                                         onClick={handleJoinGame}
                                         disabled={isJoining || !joinCode.trim()}
-                                        className="px-4 py-2 bg-rose-600 hover:bg-rose-500 rounded-lg transition-colors text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-4 py-2 bg-rose-600 hover:bg-rose-500 rounded-lg transition-colors text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
+                                        {isJoining && <Loader2 className="w-4 h-4 animate-spin" />}
                                         {isJoining ? 'Joining...' : 'Join'}
                                     </button>
                                 </div>
@@ -155,6 +190,12 @@ export const Home = () => {
 
                         {gameLink && gameCode && (
                             <div className="mt-4 p-4 bg-stone-900/50 rounded-xl border border-stone-600/50">
+                                {isWaiting && (
+                                    <div className="flex items-center gap-2 mb-3 text-amber-400">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span className="text-sm font-medium">Waiting for opponent to join...</span>
+                                    </div>
+                                )}
                                 <p className="text-stone-400 text-sm mb-2">Share this link with a friend:</p>
                                 <div className="flex items-center gap-2">
                                     <input
