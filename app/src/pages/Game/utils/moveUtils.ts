@@ -12,6 +12,40 @@ const canStopOnObstacle = (obstacleType: ObstacleType): boolean => {
   return obstacleType === ObstacleTypes.CAVE
 }
 
+const getAdjacentEmptyPositions = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
+  const directions = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],
+    [-1, -1], [-1, 1], [1, -1], [1, 1]
+  ]
+  const emptyPositions: Position[] = []
+
+  for (const [rowDir, colDir] of directions) {
+    const newRow = pos.row + rowDir
+    const newCol = pos.col + colDir
+
+    if (!isInBounds(newRow, newCol, boardSize)) continue
+
+    const cell = board[newRow][newCol]
+    if (cell === null) {
+      emptyPositions.push({ row: newRow, col: newCol })
+    }
+  }
+
+  return emptyPositions
+}
+
+const canEnterCave = (board: Board, cavePos: Position, boardSize: BoardSize): boolean => {
+  const caves = findAllCaves(board)
+  const otherCaves = caves.filter(c => c.row !== cavePos.row || c.col !== cavePos.col)
+
+  for (const cave of otherCaves) {
+    const adjacentEmpty = getAdjacentEmptyPositions(board, cave, boardSize)
+    if (adjacentEmpty.length > 0) return true
+  }
+
+  return false
+}
+
 const isPathClear = (
   board: Board,
   from: Position,
@@ -72,7 +106,10 @@ const getHopliteMoves = (board: Board, pos: Position, piece: Piece, boardSize: B
       if (isObstacle(targetCell)) {
         if (canPassObstacle(piece.type, targetCell.type)) {
           if (canStopOnObstacle(targetCell.type)) {
-            moves.push({ row: newRow, col: pos.col })
+            const cavePos = { row: newRow, col: pos.col }
+            if (canEnterCave(board, cavePos, boardSize)) {
+              moves.push(cavePos)
+            }
           }
           continue
         } else {
@@ -103,7 +140,10 @@ const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: Boa
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
             if (canStopOnObstacle(cell.type)) {
-              moves.push({ row, col })
+              const cavePos = { row, col }
+              if (canEnterCave(board, cavePos, boardSize)) {
+                moves.push(cavePos)
+              }
             }
             row += rowDir
             col += colDir
@@ -139,7 +179,10 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
             if (canStopOnObstacle(cell.type)) {
-              moves.push({ row, col })
+              const cavePos = { row, col }
+              if (canEnterCave(board, cavePos, boardSize)) {
+                moves.push(cavePos)
+              }
             }
             row += rowDir
             col += colDir
@@ -181,7 +224,10 @@ const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSi
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
             if (canStopOnObstacle(cell.type)) {
-              moves.push({ row, col })
+              const cavePos = { row, col }
+              if (canEnterCave(board, cavePos, boardSize)) {
+                moves.push(cavePos)
+              }
             }
             continue
           } else {
@@ -232,28 +278,6 @@ const getPatternMoves = (board: Board, pos: Position, piece: Piece, boardSize: B
   return uniqueMoves
 }
 
-const getCaveTeleportMoves = (board: Board, pos: Position, piece: Piece): Position[] => {
-  const moves: Position[] = []
-
-  if (!PIECE_RULES[piece.type].canPass.includes(ObstacleTypes.CAVE)) {
-    return moves
-  }
-
-  const currentCell = board[pos.row][pos.col]
-  if (!currentCell || !isObstacle(currentCell) || currentCell.type !== ObstacleTypes.CAVE) {
-    return moves
-  }
-
-  const caves = findAllCaves(board)
-  for (const cave of caves) {
-    if (cave.row !== pos.row || cave.col !== pos.col) {
-      moves.push({ row: cave.row, col: cave.col })
-    }
-  }
-
-  return moves
-}
-
 export const getPieceMoves = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
   const cell = board[pos.row][pos.col]
   if (!cell || !isPiece(cell)) return []
@@ -273,9 +297,6 @@ export const getPieceMoves = (board: Board, pos: Position, boardSize: BoardSize)
   } else if (Array.isArray(rules.move)) {
     moves = getPatternMoves(board, pos, cell, boardSize)
   }
-
-  const caveMoves = getCaveTeleportMoves(board, pos, cell)
-  moves = [...moves, ...caveMoves]
 
   return moves
 }
@@ -388,11 +409,38 @@ export const canAttack = (
   return attacks.some(a => a.row === target.row && a.col === target.col)
 }
 
+const getValidCaveExitPositions = (board: Board, enteredCavePos: Position, boardSize: BoardSize): Position[] => {
+  const caves = findAllCaves(board)
+  const otherCaves = caves.filter(c => c.row !== enteredCavePos.row || c.col !== enteredCavePos.col)
+  const validExits: Position[] = []
+
+  for (const cave of otherCaves) {
+    const adjacentEmpty = getAdjacentEmptyPositions(board, cave, boardSize)
+    validExits.push(...adjacentEmpty)
+  }
+
+  return validExits
+}
+
+const getRandomCaveExit = (board: Board, enteredCavePos: Position, boardSize: BoardSize): Position | null => {
+  const validExits = getValidCaveExitPositions(board, enteredCavePos, boardSize)
+
+  if (validExits.length === 0) return null
+
+  const randomIndex = Math.floor(Math.random() * validExits.length)
+  return validExits[randomIndex]
+}
+
+export const hasCaveExit = (board: Board, cavePos: Position, boardSize: BoardSize): boolean => {
+  const validExits = getValidCaveExitPositions(board, cavePos, boardSize)
+  return validExits.length > 0
+}
+
 export const makeMove = (
   board: Board,
   from: Position,
   to: Position,
-  _boardSize: BoardSize,
+  boardSize: BoardSize,
   isAttack: boolean = false
 ): { newBoard: Board; move: Move } => {
   const newBoard = cloneBoard(board)
@@ -406,9 +454,19 @@ export const makeMove = (
   const targetCell = newBoard[to.row][to.col]
   const captured = targetCell && isPiece(targetCell) ? targetCell : undefined
 
+  let finalPosition = to
+  const isCaveDestination = targetCell && isObstacle(targetCell) && targetCell.type === ObstacleTypes.CAVE
+
+  if (isCaveDestination && !isAttack) {
+    const caveExit = getRandomCaveExit(newBoard, to, boardSize)
+    if (caveExit) {
+      finalPosition = caveExit
+    }
+  }
+
   const move: Move = {
     from,
-    to,
+    to: finalPosition,
     piece: { ...piece },
     captured: captured ? { ...captured } : undefined,
     isAttack
@@ -417,7 +475,7 @@ export const makeMove = (
   if (isAttack && captured) {
     newBoard[to.row][to.col] = null
   } else {
-    newBoard[to.row][to.col] = { ...piece, hasMoved: true }
+    newBoard[finalPosition.row][finalPosition.col] = { ...piece, hasMoved: true }
     newBoard[from.row][from.col] = null
   }
 
