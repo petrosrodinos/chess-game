@@ -8,6 +8,10 @@ const canPassObstacle = (pieceType: PieceType, obstacleType: ObstacleType): bool
   return rules.canPass.includes(obstacleType)
 }
 
+const canStopOnObstacle = (obstacleType: ObstacleType): boolean => {
+  return obstacleType === ObstacleTypes.CAVE
+}
+
 const isPathClear = (
   board: Board,
   from: Position,
@@ -65,7 +69,16 @@ const getHopliteMoves = (board: Board, pos: Position, piece: Piece, boardSize: B
     const targetCell = board[newRow][pos.col]
     if (targetCell) {
       if (isPiece(targetCell)) break
-      if (isObstacle(targetCell) && !canPassObstacle(piece.type, targetCell.type)) break
+      if (isObstacle(targetCell)) {
+        if (canPassObstacle(piece.type, targetCell.type)) {
+          if (canStopOnObstacle(targetCell.type)) {
+            moves.push({ row: newRow, col: pos.col })
+          }
+          continue
+        } else {
+          break
+        }
+      }
     }
 
     moves.push({ row: newRow, col: pos.col })
@@ -89,18 +102,18 @@ const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: Boa
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
-            // Can pass through, continue to next square
+            if (canStopOnObstacle(cell.type)) {
+              moves.push({ row, col })
+            }
             row += rowDir
             col += colDir
             continue
           } else {
-            // Cannot pass, stop here
             break
           }
         }
       }
 
-      // Only add empty squares as valid moves
       moves.push({ row, col })
       row += rowDir
       col += colDir
@@ -125,18 +138,18 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
-            // Can pass through, continue to next square
+            if (canStopOnObstacle(cell.type)) {
+              moves.push({ row, col })
+            }
             row += rowDir
             col += colDir
             continue
           } else {
-            // Cannot pass, stop here
             break
           }
         }
       }
 
-      // Only add empty squares as valid moves
       moves.push({ row, col })
       row += rowDir
       col += colDir
@@ -167,16 +180,16 @@ const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSi
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
-            // Can pass through, continue to next step
+            if (canStopOnObstacle(cell.type)) {
+              moves.push({ row, col })
+            }
             continue
           } else {
-            // Cannot pass, stop here
             break
           }
         }
       }
 
-      // Only add empty squares as valid moves
       moves.push({ row, col })
     }
   }
