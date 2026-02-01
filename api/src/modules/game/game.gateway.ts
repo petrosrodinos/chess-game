@@ -114,10 +114,10 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
             const room = this.server.sockets.adapter.rooms.get(gameSession.code)
             const roomSize = room?.size ?? 0
 
-            if (roomSize >= 2) {
-                client.emit(SocketEvents.ERROR, { message: 'Game is full.' })
-                return
-            }
+            // if (roomSize >= 2) {
+            //     client.emit(SocketEvents.ERROR, { message: 'Game is full.' })
+            //     return
+            // }
 
             await client.join(gameSession.code)
             this.trackClientGame(client.id, gameSession.code)

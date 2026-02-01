@@ -74,9 +74,9 @@ export class GameService {
             throw new BadRequestException('Game already started or finished')
         }
 
-        if (gameSession.players.length >= 2) {
-            throw new BadRequestException('Game is full')
-        }
+        // if (gameSession.players.length >= 2) {
+        //     throw new BadRequestException('Game is full')
+        // }
 
         const updatedGameSession: GameSession = {
             ...gameSession,
