@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Users, Plus, LogIn, Copy, Check, Loader2 } from 'lucide-react'
+import { User, Users, Plus, LogIn, Copy, Check, Loader2, X } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { GameModes, SocketEvents } from '../../constants'
 import type { GameMode } from '../../constants'
@@ -108,6 +108,13 @@ export const Home = () => {
         setCopiedCode(true)
         setTimeout(() => setCopiedCode(false), 2000)
     }, [gameCode])
+
+    const handleCancelGame = useCallback(() => {
+        if (!gameCode) return
+        emit(SocketEvents.LEAVE_GAME, { code: gameCode })
+        setGameCode(null)
+        setIsWaiting(false)
+    }, [emit, gameCode])
 
     const handleLogout = useCallback(() => {
         logout()
@@ -236,6 +243,14 @@ export const Home = () => {
                                         {copiedCode ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-white" />}
                                     </button>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={handleCancelGame}
+                                    className="w-full mt-4 py-2 px-4 bg-stone-700 hover:bg-stone-600 text-stone-300 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <X className="w-4 h-4" />
+                                    Cancel
+                                </button>
                             </div>
                         )}
                     </div>
