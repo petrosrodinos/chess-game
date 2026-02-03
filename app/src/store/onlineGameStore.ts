@@ -1,13 +1,15 @@
 import { create } from 'zustand'
-import type { Position, GameState, PlayerColor } from '../pages/Game/types'
-import { isPiece, PlayerColors } from '../pages/Game/types'
+import type { Position, GameState, PlayerColor, SwapTarget } from '../pages/Game/types'
+import { isPiece, PlayerColors, PieceTypes } from '../pages/Game/types'
 import type { GameSession, Player } from '../features/game/interfaces'
 import {
     getValidMoves,
     getValidAttacks,
     makeMove,
     isMonarchCaptured,
-    hasLegalMoves
+    hasLegalMoves,
+    getValidSwapTargets,
+    executeSwap
 } from '../pages/Game/utils'
 
 interface OnlineGameStore {
@@ -17,6 +19,7 @@ interface OnlineGameStore {
     selectedPosition: Position | null
     validMoves: Position[]
     validAttacks: Position[]
+    validSwaps: SwapTarget[]
     isLoading: boolean
     error: string | null
 
@@ -42,6 +45,7 @@ const initialState = {
     selectedPosition: null,
     validMoves: [] as Position[],
     validAttacks: [] as Position[],
+    validSwaps: [] as SwapTarget[],
     isLoading: false,
     error: null
 }
@@ -87,17 +91,19 @@ export const useOnlineGameStore = create<OnlineGameStore>((set, get) => ({
                 selectedPosition: null,
                 validMoves: [],
                 validAttacks: [],
+                validSwaps: [],
                 moveHistory: gameSession.gameState.moveHistory || [],
                 capturedPieces: gameSession.gameState.capturedPieces || { white: [], black: [] },
                 lastMove: gameSession.gameState.lastMove || null,
                 gameOver: gameSession.gameState.gameOver || false,
-                winner: gameSession.gameState.winner || null
+                winner: gameSession.gameState.winner || null,
+                narcs: gameSession.gameState.narcs || []
             }
         })
     },
 
     selectSquare: (pos: Position): boolean => {
-        const { gameSession, gameState, currentPlayerId, selectedPosition, validMoves, validAttacks } = get()
+        const { gameSession, gameState, currentPlayerId, selectedPosition, validMoves, validAttacks, validSwaps } = get()
 
         if (!gameSession || !gameState) return false
         if (!currentPlayerId) return false
@@ -118,14 +124,50 @@ export const useOnlineGameStore = create<OnlineGameStore>((set, get) => ({
             const isValidAttackTarget = validAttacks.some(
                 a => a.row === pos.row && a.col === pos.col
             )
+            const swapTarget = validSwaps.find(
+                s => s.position.row === pos.row && s.position.col === pos.col
+            )
+
+            if (swapTarget) {
+                const swapResult = executeSwap(board, selectedPosition, pos)
+
+                if (swapResult.success) {
+                    const nextPlayer = gameState.currentPlayer === PlayerColors.WHITE
+                        ? PlayerColors.BLACK
+                        : PlayerColors.WHITE
+                    const { gameOver, winner } = checkGameOver(swapResult.board, nextPlayer, boardSize)
+
+                    set({
+                        gameState: {
+                            ...gameState,
+                            board: swapResult.board,
+                            currentPlayer: nextPlayer,
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: [],
+                            lastMove: null,
+                            gameOver,
+                            winner
+                        },
+                        selectedPosition: null,
+                        validMoves: [],
+                        validAttacks: [],
+                        validSwaps: []
+                    })
+
+                    return true
+                }
+            }
 
             if (isValidMoveTarget || isValidAttackTarget) {
-                const { newBoard, move } = makeMove(
+                const { newBoard, move, newNarcs } = makeMove(
                     board,
                     selectedPosition,
                     pos,
                     boardSize,
-                    isValidAttackTarget
+                    isValidAttackTarget,
+                    gameState.narcs
                 )
 
                 const nextPlayer = gameState.currentPlayer === PlayerColors.WHITE
@@ -150,15 +192,18 @@ export const useOnlineGameStore = create<OnlineGameStore>((set, get) => ({
                         selectedPosition: null,
                         validMoves: [],
                         validAttacks: [],
+                        validSwaps: [],
                         moveHistory: [...gameState.moveHistory, move],
                         capturedPieces: newCaptured,
                         lastMove: move,
                         gameOver,
-                        winner
+                        winner,
+                        narcs: newNarcs
                     },
                     selectedPosition: null,
                     validMoves: [],
-                    validAttacks: []
+                    validAttacks: [],
+                    validSwaps: []
                 })
 
                 return true
@@ -167,10 +212,17 @@ export const useOnlineGameStore = create<OnlineGameStore>((set, get) => ({
             if (cell && isPiece(cell) && cell.color === myPlayer.color) {
                 const moves = getValidMoves(board, pos, boardSize)
                 const attacks = getValidAttacks(board, pos, boardSize)
+                const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
+                    ? getValidSwapTargets(board, pos).map(s => ({
+                        position: s.position,
+                        swapType: s.swapType
+                    }))
+                    : []
                 set({
                     selectedPosition: pos,
                     validMoves: moves,
-                    validAttacks: attacks
+                    validAttacks: attacks,
+                    validSwaps: swaps
                 })
                 return false
             }
@@ -178,7 +230,8 @@ export const useOnlineGameStore = create<OnlineGameStore>((set, get) => ({
             set({
                 selectedPosition: null,
                 validMoves: [],
-                validAttacks: []
+                validAttacks: [],
+                validSwaps: []
             })
             return false
         }
@@ -186,10 +239,17 @@ export const useOnlineGameStore = create<OnlineGameStore>((set, get) => ({
         if (cell && isPiece(cell) && cell.color === myPlayer.color) {
             const moves = getValidMoves(board, pos, boardSize)
             const attacks = getValidAttacks(board, pos, boardSize)
+            const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
+                ? getValidSwapTargets(board, pos).map(s => ({
+                    position: s.position,
+                    swapType: s.swapType
+                }))
+                : []
             set({
                 selectedPosition: pos,
                 validMoves: moves,
-                validAttacks: attacks
+                validAttacks: attacks,
+                validSwaps: swaps
             })
         }
 
@@ -208,15 +268,18 @@ export const useOnlineGameStore = create<OnlineGameStore>((set, get) => ({
                 selectedPosition: null,
                 validMoves: [],
                 validAttacks: [],
+                validSwaps: [],
                 moveHistory: session.gameState.moveHistory || [],
                 capturedPieces: session.gameState.capturedPieces || { white: [], black: [] },
                 lastMove: session.gameState.lastMove || null,
                 gameOver: session.gameState.gameOver || false,
-                winner: session.gameState.winner || null
+                winner: session.gameState.winner || null,
+                narcs: session.gameState.narcs || []
             },
             selectedPosition: null,
             validMoves: [],
-            validAttacks: []
+            validAttacks: [],
+            validSwaps: []
         })
     },
 

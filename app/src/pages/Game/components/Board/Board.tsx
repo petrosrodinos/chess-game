@@ -1,13 +1,13 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { generateFiles, generateRanks } from '../../constants'
 import { Square } from '../Square'
 import { AnimatedPiece } from '../Piece/AnimatedPiece'
 import { useGameStore } from '../../../../store/gameStore'
 import { useUIStore } from '../../../../store/uiStore'
-import { getValidMoves, getValidAttacks } from '../../utils'
+import { getValidMoves, getValidAttacks, getAllNarcNetPositions } from '../../utils'
 import { isPiece } from '../../types'
-import type { Board as BoardType, BoardSize, Position, Move } from '../../types'
+import type { Board as BoardType, BoardSize, Position, Move, SwapTarget } from '../../types'
 
 interface BoardProps {
     isOnline?: boolean
@@ -16,6 +16,7 @@ interface BoardProps {
     onlineSelectedPosition?: Position | null
     onlineValidMoves?: Position[]
     onlineValidAttacks?: Position[]
+    onlineValidSwaps?: SwapTarget[]
     onlineLastMove?: Move | null
     onSquareClick?: (pos: Position) => void
 }
@@ -27,6 +28,7 @@ export const Board = ({
     onlineSelectedPosition,
     onlineValidMoves = [],
     onlineValidAttacks = [],
+    onlineValidSwaps = [],
     onlineLastMove,
     onSquareClick
 }: BoardProps) => {
@@ -38,8 +40,14 @@ export const Board = ({
     const selectedPosition = isOnline ? onlineSelectedPosition : gameState.selectedPosition
     const validMoves = isOnline ? onlineValidMoves : gameState.validMoves
     const validAttacks = isOnline ? onlineValidAttacks : gameState.validAttacks
+    const validSwaps = isOnline ? onlineValidSwaps : gameState.validSwaps
     const lastMove = isOnline ? onlineLastMove : gameState.lastMove
     const currentHintMove = isOnline ? null : hintMove
+
+    const narcNetPositions = useMemo(() => {
+        if (!board || board.length === 0) return []
+        return getAllNarcNetPositions(board, boardSize)
+    }, [board, boardSize])
 
     const [helpPosition, setHelpPosition] = useState<{ row: number; col: number } | null>(null)
     const helpMoves = helpPosition && helpEnabled && !isOnline
@@ -71,6 +79,9 @@ export const Board = ({
     const isValidAttack = (row: number, col: number) =>
         validAttacks.some(a => a.row === row && a.col === col)
 
+    const isValidSwap = (row: number, col: number) =>
+        validSwaps.some(s => s.position.row === row && s.position.col === col)
+
     const isLastMoveSquare = (row: number, col: number) =>
         lastMove != null &&
         ((lastMove.from.row === row && lastMove.from.col === col) ||
@@ -91,6 +102,11 @@ export const Board = ({
 
     const isHelpAttack = (row: number, col: number) =>
         !isOnline && helpEnabled && helpAttacks.some(a => a.row === row && a.col === col)
+
+    const getNarcOwner = (row: number, col: number) => {
+        const narcNet = narcNetPositions.find(n => n.position.row === row && n.position.col === col)
+        return narcNet ? narcNet.ownerColor : null
+    }
 
     const handleSquareClick = (row: number, col: number) => {
         if (isOnline && onSquareClick) {
@@ -151,18 +167,20 @@ export const Board = ({
                     {board.map((row, rowIndex) => (
                         <div key={rowIndex} className="flex">
                             {row.map((cell, colIndex) => (
-                                <Square
-                                    key={`${rowIndex}-${colIndex}`}
-                                    cell={cell}
-                                    position={{ row: rowIndex, col: colIndex }}
-                                    isSelected={isSelected(rowIndex, colIndex) || (!isOnline && helpEnabled && helpPosition?.row === rowIndex && helpPosition?.col === colIndex)}
-                                    isValidMove={isValidMove(rowIndex, colIndex) || isHelpMove(rowIndex, colIndex) || isDevModeTarget(rowIndex, colIndex)}
-                                    isValidAttack={isValidAttack(rowIndex, colIndex) || isHelpAttack(rowIndex, colIndex)}
-                                    isLastMove={isLastMoveSquare(rowIndex, colIndex)}
-                                    isHint={isHint(rowIndex, colIndex)}
-                                    isHintAttack={isHintAttack(rowIndex, colIndex)}
-                                    onClick={() => handleSquareClick(rowIndex, colIndex)}
-                                />
+<Square
+                                                    key={`${rowIndex}-${colIndex}`}
+                                                    cell={cell}
+                                                    position={{ row: rowIndex, col: colIndex }}
+                                                    isSelected={isSelected(rowIndex, colIndex) || (!isOnline && helpEnabled && helpPosition?.row === rowIndex && helpPosition?.col === colIndex)}
+                                                    isValidMove={isValidMove(rowIndex, colIndex) || isHelpMove(rowIndex, colIndex) || isDevModeTarget(rowIndex, colIndex)}
+                                                    isValidAttack={isValidAttack(rowIndex, colIndex) || isHelpAttack(rowIndex, colIndex)}
+                                                    isValidSwap={isValidSwap(rowIndex, colIndex)}
+                                                    isLastMove={isLastMoveSquare(rowIndex, colIndex)}
+                                                    isHint={isHint(rowIndex, colIndex)}
+                                                    isHintAttack={isHintAttack(rowIndex, colIndex)}
+                                                    hasNarc={getNarcOwner(rowIndex, colIndex)}
+                                                    onClick={() => handleSquareClick(rowIndex, colIndex)}
+                                                />
                             ))}
                         </div>
                     ))}

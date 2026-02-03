@@ -1,4 +1,4 @@
-import type { Board, Piece, Move, PlayerColor } from '../../../pages/Game/types'
+import type { Board, Piece, Move, PlayerColor, Narc } from '../../../pages/Game/types'
 
 export const PlayerColors = {
     WHITE: 'white',
@@ -49,6 +49,7 @@ export interface GameBoardState {
     lastMove: Move | null
     gameOver: boolean
     winner: PlayerColor | null
+    narcs: Narc[]
 }
 
 export interface GameSession {

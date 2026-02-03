@@ -1,5 +1,5 @@
-import type { CellContent, Position } from '../../types'
-import { isPiece, isObstacle } from '../../types'
+import type { CellContent, Position, PlayerColor } from '../../types'
+import { isPiece, isObstacle, PlayerColors } from '../../types'
 import { OBSTACLE_SYMBOLS, OBSTACLE_NAMES } from '../../constants'
 
 interface SquareProps {
@@ -8,9 +8,11 @@ interface SquareProps {
   isSelected: boolean
   isValidMove: boolean
   isValidAttack: boolean
+  isValidSwap: boolean
   isLastMove: boolean
   isHint: boolean
   isHintAttack: boolean
+  hasNarc?: PlayerColor | null
   onClick: () => void
 }
 
@@ -20,9 +22,11 @@ export const Square = ({
   isSelected,
   isValidMove,
   isValidAttack,
+  isValidSwap,
   isLastMove,
   isHint,
   isHintAttack,
+  hasNarc = null,
   onClick
 }: SquareProps) => {
   const isLight = (position.row + position.col) % 2 === 0
@@ -46,6 +50,8 @@ export const Square = ({
       colorClasses = isLight ? 'bg-cyan-300' : 'bg-cyan-600'
     } else if (isLastMove) {
       colorClasses = isLight ? 'bg-yellow-200' : 'bg-yellow-600'
+    } else if (isValidSwap) {
+      colorClasses = isLight ? 'bg-violet-200 hover:bg-violet-300' : 'bg-violet-700 hover:bg-violet-600'
     } else if (isValidAttack) {
       colorClasses = isLight ? 'bg-rose-200 hover:bg-rose-300' : 'bg-rose-700 hover:bg-rose-600'
     }
@@ -69,8 +75,21 @@ export const Square = ({
       {isValidAttack && cell && isPiece(cell) && (
         <div className="absolute w-full h-full border-4 border-rose-500 rounded-sm animate-pulse" />
       )}
+      {isValidSwap && cell && isPiece(cell) && (
+        <div className="absolute w-full h-full border-4 border-violet-500 rounded-sm animate-pulse" />
+      )}
       {(isHint || isHintAttack) && (
         <div className={`absolute inset-0 ring-4 ${isHintAttack ? 'ring-rose-400' : 'ring-cyan-400'} ring-inset animate-pulse`} />
+      )}
+      {hasNarc && !cell && (
+        <div 
+          className={`absolute w-2 h-2 rounded-full ${
+            hasNarc === PlayerColors.WHITE 
+              ? 'bg-amber-200/60' 
+              : 'bg-stone-800/60'
+          }`}
+          title="Narc trap"
+        />
       )}
     </div>
   )

@@ -39,14 +39,15 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     zombiePoints: 13
   },
   [PieceTypes.BOMBER]: {
-    move: [[1, 0], [0, 1], [1, 1], [2, 0], [0, 2]],
+    move: [[1, 0], [0, 1], [1, 1], [2, 0], [0, 2], [2, 2]],
     attackRange: 0,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON],
+    canJumpPieces: true,
     points: 12,
     zombiePoints: 9
   },
   [PieceTypes.PALADIN]: {
-    move: MovePatterns.SIDEWAYS,
+    move: MovePatterns.DIAGONAL,
     attackRange: 3,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON],
     points: 15,
@@ -72,8 +73,8 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     points: 27
   },
   [PieceTypes.NECROMANCER]: {
-    move: MovePatterns.ANY,
-    attackRange: 1,
+    move: [[1, 0], [0, 1], [1, 1]],
+    attackRange: 8,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE],
     points: 13
   }
@@ -152,8 +153,8 @@ export const OBSTACLE_COUNTS: Record<string, Record<ObstacleType, number>> = {
     [ObstacleTypes.TREE]: 2,
     [ObstacleTypes.ROCK]: 2,
     [ObstacleTypes.LAKE]: 4,
-    [ObstacleTypes.RIVER]: 3,
-    [ObstacleTypes.CANYON]: 3,
+    [ObstacleTypes.RIVER]: 2,
+    [ObstacleTypes.CANYON]: 2,
     [ObstacleTypes.MYSTERY_BOX]: 2
   },
   [BoardSizeKeys.MEDIUM]: {
@@ -200,11 +201,13 @@ export const INITIAL_GAME_STATE: GameState = {
   selectedPosition: null,
   validMoves: [],
   validAttacks: [],
+  validSwaps: [],
   moveHistory: [],
   capturedPieces: { white: [], black: [] },
   lastMove: null,
   gameOver: false,
-  winner: null
+  winner: null,
+  narcs: []
 }
 
 export const BOT_DELAY = {

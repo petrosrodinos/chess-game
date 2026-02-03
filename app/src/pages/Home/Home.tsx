@@ -29,9 +29,18 @@ export const Home = () => {
     const [isCreating, setIsCreating] = useState(false)
     const [isJoining, setIsJoining] = useState(false)
     const [isWaiting, setIsWaiting] = useState(false)
-    const { emit, on, off } = useSocket()
+    const { emit, on, off, connectionError } = useSocket()
 
     const gameLink = gameCode ? `${environments.APP_URL}/game?code=${gameCode}` : null
+
+    useEffect(() => {
+        if (connectionError && (isCreating || isJoining)) {
+            setIsCreating(false)
+            setIsJoining(false)
+            setIsWaiting(false)
+            toast.error('Failed to connect to game server. Please try again.')
+        }
+    }, [connectionError, isCreating, isJoining])
 
     useEffect(() => {
         on<GameSession>(SocketEvents.CREATE_GAME, (data: GameSession) => {

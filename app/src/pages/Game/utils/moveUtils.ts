@@ -1,7 +1,8 @@
-import type { Board, Piece, Position, Move, PlayerColor, PieceType, BoardSize, ObstacleType } from '../types'
+import type { Board, Piece, Position, Move, PlayerColor, PieceType, BoardSize, ObstacleType, Narc } from '../types'
 import { isPiece, isObstacle, PlayerColors, PieceTypes, ObstacleTypes, MovePatterns } from '../types'
 import { isInBounds, cloneBoard, getObstacleType, findAllCaves } from './boardUtils'
 import { PIECE_RULES } from '../constants'
+import { createNarcsForBomber, checkNarcNetTrigger, removeNarcsForBomber } from './narcUtils'
 
 const canPassObstacle = (pieceType: PieceType, obstacleType: ObstacleType): boolean => {
   const rules = PIECE_RULES[pieceType]
@@ -202,6 +203,45 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
   return moves
 }
 
+const getDiagonalMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
+  const moves: Position[] = []
+  const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+
+  for (const [rowDir, colDir] of directions) {
+    let row = pos.row + rowDir
+    let col = pos.col + colDir
+
+    while (isInBounds(row, col, boardSize)) {
+      const cell = board[row][col]
+
+      if (cell) {
+        if (isPiece(cell)) break
+        if (isObstacle(cell)) {
+          if (canPassObstacle(piece.type, cell.type)) {
+            if (canStopOnObstacle(cell.type)) {
+              const cavePos = { row, col }
+              if (canEnterCave(board, cavePos, boardSize)) {
+                moves.push(cavePos)
+              }
+            }
+            row += rowDir
+            col += colDir
+            continue
+          } else {
+            break
+          }
+        }
+      }
+
+      moves.push({ row, col })
+      row += rowDir
+      col += colDir
+    }
+  }
+
+  return moves
+}
+
 const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize, maxSteps: number = 1): Position[] => {
   const moves: Position[] = []
   const directions = [
@@ -291,6 +331,8 @@ export const getPieceMoves = (board: Board, pos: Position, boardSize: BoardSize)
     moves = getCrossMoves(board, pos, cell, boardSize)
   } else if (rules.move === MovePatterns.SIDEWAYS) {
     moves = getSidewaysMoves(board, pos, cell, boardSize)
+  } else if (rules.move === MovePatterns.DIAGONAL) {
+    moves = getDiagonalMoves(board, pos, cell, boardSize)
   } else if (rules.move === MovePatterns.ANY) {
     const maxSteps = cell.type === PieceTypes.MONARCH ? 1 : boardSize.rows
     moves = getAnyDirectionMoves(board, pos, cell, boardSize, maxSteps)
@@ -441,8 +483,9 @@ export const makeMove = (
   from: Position,
   to: Position,
   boardSize: BoardSize,
-  isAttack: boolean = false
-): { newBoard: Board; move: Move } => {
+  isAttack: boolean = false,
+  narcs: Narc[] = []
+): { newBoard: Board; move: Move; newNarcs: Narc[] } => {
   const newBoard = cloneBoard(board)
   const cell = newBoard[from.row][from.col]
 
@@ -464,6 +507,24 @@ export const makeMove = (
     }
   }
 
+  let newNarcs = [...narcs]
+  const triggeredNarcNet = checkNarcNetTrigger(board, boardSize, finalPosition, piece.color)
+
+  if (triggeredNarcNet && !isAttack) {
+    newBoard[from.row][from.col] = null
+
+    const move: Move = {
+      from,
+      to: finalPosition,
+      piece: { ...piece },
+      captured: { ...piece },
+      isAttack: false,
+      terminatedByNarc: true
+    }
+
+    return { newBoard, move, newNarcs }
+  }
+
   const move: Move = {
     from,
     to: finalPosition,
@@ -474,6 +535,9 @@ export const makeMove = (
 
   if (isAttack && captured) {
     newBoard[to.row][to.col] = null
+    if (captured.type === PieceTypes.BOMBER) {
+      newNarcs = removeNarcsForBomber(newNarcs, captured.id)
+    }
   } else {
     newBoard[finalPosition.row][finalPosition.col] = { ...piece, hasMoved: true }
     newBoard[from.row][from.col] = null
@@ -483,7 +547,20 @@ export const makeMove = (
     newBoard[from.row][from.col] = null
   }
 
-  return { newBoard, move }
+  if (piece.type === PieceTypes.BOMBER && !isAttack) {
+    newNarcs = removeNarcsForBomber(newNarcs, piece.id)
+    const bomberNarcs = createNarcsForBomber(
+      finalPosition,
+      piece.color,
+      piece.id,
+      newBoard,
+      boardSize,
+      newNarcs
+    )
+    newNarcs = [...newNarcs, ...bomberNarcs]
+  }
+
+  return { newBoard, move, newNarcs }
 }
 
 export const hasLegalMoves = (board: Board, color: PlayerColor, boardSize: BoardSize): boolean => {

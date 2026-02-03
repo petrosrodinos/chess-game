@@ -32,7 +32,8 @@ export const useGame = (initialBoardSizeKey: BoardSizeKey = BoardSizeKeys.SMALL)
         capturedPieces: { white: [], black: [] },
         lastMove: null,
         gameOver: false,
-        winner: null
+        winner: null,
+        narcs: []
     }))
 
     const [history, setHistory] = useState<HistoryEntry[]>([])
@@ -208,7 +209,8 @@ export const useGame = (initialBoardSizeKey: BoardSizeKey = BoardSizeKeys.SMALL)
             capturedPieces: { white: [], black: [] },
             lastMove: null,
             gameOver: false,
-            winner: null
+            winner: null,
+            narcs: []
         })
         setHistory([])
         setBotThinking(false)

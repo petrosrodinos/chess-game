@@ -23,31 +23,155 @@ const getBoardSizeKey = (_rows: number, cols: number): BoardSizeKey => {
 }
 
 const isProtectedZone = (row: number, _col: number, rows: number): boolean => {
-  return row < 2 || row >= rows - 2
+  return row < 3 || row >= rows - 3
+}
+
+const GROUPED_OBSTACLES: ObstacleType[] = [
+  ObstacleTypes.RIVER,
+  ObstacleTypes.LAKE,
+  ObstacleTypes.CAVE,
+  ObstacleTypes.CANYON,
+  ObstacleTypes.ROCK,
+  ObstacleTypes.TREE
+]
+
+const getAdjacentPositions = (row: number, col: number): { row: number; col: number }[] => {
+  return [
+    { row: row, col: col + 1 },
+    { row: row + 1, col: col },
+    { row: row, col: col - 1 },
+    { row: row - 1, col: col }
+  ]
+}
+
+const placeMysteryBoxes = (
+  board: Board,
+  rows: number,
+  cols: number,
+  count: number
+): void => {
+  const centerCol = Math.floor(cols / 2)
+  const leftHalfEnd = centerCol - 1
+  const rightHalfStart = centerCol + 1
+
+  const boxesPerHalf = Math.floor(count / 2)
+  const extraBox = count % 2
+
+  let placedLeft = 0
+  let placedRight = 0
+  let attempts = 0
+  const maxAttempts = count * 100
+
+  while ((placedLeft < boxesPerHalf || placedRight < boxesPerHalf + extraBox) && attempts < maxAttempts) {
+    attempts++
+
+    const targetLeft = placedLeft < boxesPerHalf
+    const targetRight = placedRight < boxesPerHalf + extraBox
+
+    let col: number
+    if (targetLeft && (!targetRight || Math.random() < 0.5)) {
+      col = Math.floor(Math.random() * (leftHalfEnd + 1))
+    } else if (targetRight) {
+      col = rightHalfStart + Math.floor(Math.random() * (cols - rightHalfStart))
+    } else {
+      continue
+    }
+
+    const row = Math.floor(Math.random() * rows)
+
+    if (isProtectedZone(row, col, rows)) continue
+    if (board[row][col] !== null) continue
+
+    board[row][col] = { type: ObstacleTypes.MYSTERY_BOX }
+
+    if (col <= leftHalfEnd) {
+      placedLeft++
+    } else {
+      placedRight++
+    }
+  }
+}
+
+const placeGroupedObstacle = (
+  board: Board,
+  obstacleType: ObstacleType,
+  rows: number,
+  cols: number,
+  groupSize: number
+): number => {
+  let attempts = 0
+  const maxAttempts = 100
+
+  while (attempts < maxAttempts) {
+    attempts++
+    const row = Math.floor(Math.random() * rows)
+    const col = Math.floor(Math.random() * cols)
+
+    if (isProtectedZone(row, 0, rows)) continue
+    if (board[row][col] !== null) continue
+
+    const adjacents = getAdjacentPositions(row, col)
+    const validAdjacents = adjacents.filter(pos => {
+      if (pos.row < 0 || pos.row >= rows || pos.col < 0 || pos.col >= cols) return false
+      if (isProtectedZone(pos.row, 0, rows)) return false
+      if (board[pos.row][pos.col] !== null) return false
+      return true
+    })
+
+    if (validAdjacents.length === 0) continue
+
+    const adjacentPos = validAdjacents[Math.floor(Math.random() * validAdjacents.length)]
+
+    board[row][col] = { type: obstacleType }
+    board[adjacentPos.row][adjacentPos.col] = { type: obstacleType }
+
+    return groupSize
+  }
+
+  return 0
 }
 
 const placeObstacles = (board: Board, rows: number, cols: number): void => {
   const boardSizeKey = getBoardSizeKey(rows, cols)
   const obstacleCounts = getObstacleCounts(boardSizeKey)
+  const isSmallBoard = boardSizeKey === BoardSizeKeys.SMALL
 
   const obstacleTypes = Object.keys(obstacleCounts) as ObstacleType[]
 
   for (const obstacleType of obstacleTypes) {
     const count = obstacleCounts[obstacleType]
     let placed = 0
-    let attempts = 0
-    const maxAttempts = count * 50
 
-    while (placed < count && attempts < maxAttempts) {
-      attempts++
-      const row = Math.floor(Math.random() * rows)
-      const col = Math.floor(Math.random() * cols)
+    if (obstacleType === ObstacleTypes.MYSTERY_BOX) {
+      placeMysteryBoxes(board, rows, cols, count)
+      continue
+    }
 
-      if (isProtectedZone(row, col, rows)) continue
-      if (board[row][col] !== null) continue
+    const shouldGroup = isSmallBoard && GROUPED_OBSTACLES.includes(obstacleType)
 
-      board[row][col] = { type: obstacleType }
-      placed++
+    if (shouldGroup) {
+      const groupSize = 2
+      const numGroups = Math.floor(count / groupSize)
+
+      for (let g = 0; g < numGroups; g++) {
+        const placedInGroup = placeGroupedObstacle(board, obstacleType, rows, cols, groupSize)
+        placed += placedInGroup
+      }
+    } else {
+      let attempts = 0
+      const maxAttempts = count * 50
+
+      while (placed < count && attempts < maxAttempts) {
+        attempts++
+        const row = Math.floor(Math.random() * rows)
+        const col = Math.floor(Math.random() * cols)
+
+        if (isProtectedZone(row, col, rows)) continue
+        if (board[row][col] !== null) continue
+
+        board[row][col] = { type: obstacleType }
+        placed++
+      }
     }
   }
 }

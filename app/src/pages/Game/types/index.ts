@@ -22,7 +22,8 @@ export type PieceType = typeof PieceTypes[keyof typeof PieceTypes]
 export const MovePatterns = {
   ANY: 'any',
   SIDEWAYS: 'sideways',
-  CROSS: 'cross'
+  CROSS: 'cross',
+  DIAGONAL: 'diagonal'
 } as const
 
 export type MovePattern = typeof MovePatterns[keyof typeof MovePatterns]
@@ -107,6 +108,12 @@ export interface Move {
   piece: Piece
   captured?: Piece
   isAttack?: boolean
+  terminatedByNarc?: boolean
+}
+
+export interface SwapTarget {
+  position: Position
+  swapType: 'warlock-monarch' | 'hoplite-monarch'
 }
 
 export interface GameState {
@@ -116,15 +123,24 @@ export interface GameState {
   selectedPosition: Position | null
   validMoves: Position[]
   validAttacks: Position[]
+  validSwaps: SwapTarget[]
   moveHistory: Move[]
   capturedPieces: { white: Piece[]; black: Piece[] }
   lastMove: Move | null
   gameOver: boolean
   winner: PlayerColor | null
+  narcs: Narc[]
 }
 
 export interface HintMove {
   from: Position
   to: Position
   isAttack?: boolean
+}
+
+export interface Narc {
+  id: string
+  position: Position
+  ownerColor: PlayerColor
+  bomberId: string
 }
