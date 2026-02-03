@@ -203,6 +203,45 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
   return moves
 }
 
+const getDiagonalMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
+  const moves: Position[] = []
+  const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+
+  for (const [rowDir, colDir] of directions) {
+    let row = pos.row + rowDir
+    let col = pos.col + colDir
+
+    while (isInBounds(row, col, boardSize)) {
+      const cell = board[row][col]
+
+      if (cell) {
+        if (isPiece(cell)) break
+        if (isObstacle(cell)) {
+          if (canPassObstacle(piece.type, cell.type)) {
+            if (canStopOnObstacle(cell.type)) {
+              const cavePos = { row, col }
+              if (canEnterCave(board, cavePos, boardSize)) {
+                moves.push(cavePos)
+              }
+            }
+            row += rowDir
+            col += colDir
+            continue
+          } else {
+            break
+          }
+        }
+      }
+
+      moves.push({ row, col })
+      row += rowDir
+      col += colDir
+    }
+  }
+
+  return moves
+}
+
 const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize, maxSteps: number = 1): Position[] => {
   const moves: Position[] = []
   const directions = [
@@ -292,6 +331,8 @@ export const getPieceMoves = (board: Board, pos: Position, boardSize: BoardSize)
     moves = getCrossMoves(board, pos, cell, boardSize)
   } else if (rules.move === MovePatterns.SIDEWAYS) {
     moves = getSidewaysMoves(board, pos, cell, boardSize)
+  } else if (rules.move === MovePatterns.DIAGONAL) {
+    moves = getDiagonalMoves(board, pos, cell, boardSize)
   } else if (rules.move === MovePatterns.ANY) {
     const maxSteps = cell.type === PieceTypes.MONARCH ? 1 : boardSize.rows
     moves = getAnyDirectionMoves(board, pos, cell, boardSize, maxSteps)

@@ -22,7 +22,8 @@ export type PieceType = typeof PieceTypes[keyof typeof PieceTypes]
 export const MovePatterns = {
   ANY: 'any',
   SIDEWAYS: 'sideways',
-  CROSS: 'cross'
+  CROSS: 'cross',
+  DIAGONAL: 'diagonal'
 } as const
 
 export type MovePattern = typeof MovePatterns[keyof typeof MovePatterns]

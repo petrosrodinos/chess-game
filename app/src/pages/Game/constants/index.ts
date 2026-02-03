@@ -39,14 +39,15 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     zombiePoints: 13
   },
   [PieceTypes.BOMBER]: {
-    move: [[1, 0], [0, 1], [1, 1], [2, 0], [0, 2]],
+    move: [[1, 0], [0, 1], [1, 1], [2, 0], [0, 2], [2, 2]],
     attackRange: 0,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON],
+    canJumpPieces: true,
     points: 12,
     zombiePoints: 9
   },
   [PieceTypes.PALADIN]: {
-    move: MovePatterns.SIDEWAYS,
+    move: MovePatterns.DIAGONAL,
     attackRange: 3,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON],
     points: 15,
