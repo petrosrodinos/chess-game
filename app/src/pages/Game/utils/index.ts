@@ -38,3 +38,26 @@ export {
   canInitiateSwap
 } from './swapUtils'
 export type { SwapResult, SwapTarget } from './swapUtils'
+export {
+  getInitialMysteryBoxState,
+  rollDice,
+  getRandomMysteryBoxOption,
+  isMysteryBoxTile,
+  getPlayerFigures,
+  getPlayerHoplites,
+  getEmptyTiles,
+  getAllObstacles,
+  isSelectableObstacle,
+  executeFigureSwap,
+  executeHopliteSacrifice,
+  executeRevivePiece,
+  executeObstacleSwap,
+  canPlayerUseMysteryBoxOption1,
+  canPlayerUseMysteryBoxOption2,
+  canPlayerUseMysteryBoxOption3,
+  getRevivablePieces,
+  getPhaseForOption,
+  getMysteryBoxOptionName,
+  removeMysteryBoxFromBoard,
+  isPositionInList
+} from './mysteryBoxUtils'

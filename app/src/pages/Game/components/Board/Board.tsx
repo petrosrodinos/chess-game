@@ -32,7 +32,7 @@ export const Board = ({
     onlineLastMove,
     onSquareClick
 }: BoardProps) => {
-    const { gameState, hintMove, selectSquare, devModeSelectSquare, devModeSelected } = useGameStore()
+    const { gameState, hintMove, selectSquare, devModeSelectSquare, devModeSelected, mysteryBoxState, handleMysteryBoxSelection } = useGameStore()
     const { helpEnabled, devMode } = useUIStore()
 
     const board = isOnline && onlineBoard ? onlineBoard : gameState.board
@@ -108,9 +108,30 @@ export const Board = ({
         return narcNet ? narcNet.ownerColor : null
     }
 
+    const isMysteryBoxSelectedObstacle = (row: number, col: number) => {
+        if (isOnline || !mysteryBoxState.isActive) return false
+        return mysteryBoxState.selectedObstacles.some(p => p.row === row && p.col === col)
+    }
+
+    const isMysteryBoxSelectedEmptyTile = (row: number, col: number) => {
+        if (isOnline || !mysteryBoxState.isActive) return false
+        return mysteryBoxState.selectedEmptyTiles.some(p => p.row === row && p.col === col)
+    }
+
+    const isMysteryBoxSelectedFigure = (row: number, col: number) => {
+        if (isOnline || !mysteryBoxState.isActive) return false
+        if (!mysteryBoxState.firstFigurePosition) return false
+        return mysteryBoxState.firstFigurePosition.row === row && mysteryBoxState.firstFigurePosition.col === col
+    }
+
     const handleSquareClick = (row: number, col: number) => {
         if (isOnline && onSquareClick) {
             onSquareClick({ row, col })
+            return
+        }
+
+        if (!isOnline && mysteryBoxState.isActive) {
+            handleMysteryBoxSelection({ row, col })
             return
         }
 
@@ -179,6 +200,9 @@ export const Board = ({
                                                     isHint={isHint(rowIndex, colIndex)}
                                                     isHintAttack={isHintAttack(rowIndex, colIndex)}
                                                     hasNarc={getNarcOwner(rowIndex, colIndex)}
+                                                    isMysteryBoxSelectedObstacle={isMysteryBoxSelectedObstacle(rowIndex, colIndex)}
+                                                    isMysteryBoxSelectedEmptyTile={isMysteryBoxSelectedEmptyTile(rowIndex, colIndex)}
+                                                    isMysteryBoxSelectedFigure={isMysteryBoxSelectedFigure(rowIndex, colIndex)}
                                                     onClick={() => handleSquareClick(rowIndex, colIndex)}
                                                 />
                             ))}

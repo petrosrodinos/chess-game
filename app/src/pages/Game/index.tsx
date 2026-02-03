@@ -6,11 +6,12 @@ import { TopMenu } from './components/TopMenu'
 import { BottomMenu } from './components/BottomMenu'
 import { RightSidebar } from './components/RightSidebar'
 import { GameResultModal } from './components/GameResultModal'
+import { MysteryBoxReviveModal } from './components/MysteryBoxReviveModal'
 import { Modal } from '../../components/Modal'
 import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
 import { useGameMode, useOnlineGame } from '../../hooks'
-import { PlayerColors } from './types'
+import { PlayerColors, MysteryBoxPhases } from './types'
 import { BOT_DELAY } from './constants'
 import { environments } from '../../config/environments'
 import { GameModes } from '../../constants'
@@ -19,7 +20,7 @@ export const Game = () => {
     const { mode } = useGameMode()
     const isOnline = mode === GameModes.ONLINE
 
-    const { gameState, botEnabled, botDifficulty, botThinking, processBotMove } = useGameStore()
+    const { gameState, botEnabled, botDifficulty, botThinking, processBotMove, mysteryBoxState, selectRevivePiece, cancelMysteryBox } = useGameStore()
     const { is3D, isTopMenuOpen, isRightMenuOpen, openTopMenu, closeTopMenu, openRightMenu, closeRightMenu } = useUIStore()
     const [isResultModalOpen, setIsResultModalOpen] = useState(false)
 
@@ -251,6 +252,16 @@ export const Game = () => {
                     currentPlayer={currentPlayer}
                     players={gameSession?.players}
                 />
+
+                {!isOnline && (
+                    <MysteryBoxReviveModal
+                        isOpen={mysteryBoxState.isActive && mysteryBoxState.phase === MysteryBoxPhases.WAITING_REVIVE_FIGURE}
+                        onClose={cancelMysteryBox}
+                        pieces={mysteryBoxState.revivablePieces}
+                        onSelectPiece={selectRevivePiece}
+                        selectedPieceId={mysteryBoxState.selectedRevivePiece?.id || null}
+                    />
+                )}
             </div>
         </div>
     )

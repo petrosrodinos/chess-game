@@ -21,19 +21,19 @@ export const PIECE_RULES: Record<string, PieceRules> = {
   [PieceTypes.HOPLITE]: {
     move: [3, 2],
     attackRange: 1,
-    canPass: [ObstacleTypes.CAVE],
+    canPass: [ObstacleTypes.CAVE, ObstacleTypes.MYSTERY_BOX],
     points: 3
   },
   [PieceTypes.RAM_TOWER]: {
     move: MovePatterns.CROSS,
     attackRange: 5,
-    canPass: [],
+    canPass: [ObstacleTypes.MYSTERY_BOX],
     points: 20
   },
   [PieceTypes.CHARIOT]: {
     move: [[2, 1], [1, 2], [2, 2], [3, 1], [1, 3]],
     attackRange: 4,
-    canPass: [ObstacleTypes.RIVER],
+    canPass: [ObstacleTypes.RIVER, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
     points: 16,
     zombiePoints: 13
@@ -41,7 +41,7 @@ export const PIECE_RULES: Record<string, PieceRules> = {
   [PieceTypes.BOMBER]: {
     move: [[1, 0], [0, 1], [1, 1], [2, 0], [0, 2], [2, 2]],
     attackRange: 0,
-    canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON],
+    canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
     points: 12,
     zombiePoints: 9
@@ -49,33 +49,33 @@ export const PIECE_RULES: Record<string, PieceRules> = {
   [PieceTypes.PALADIN]: {
     move: MovePatterns.DIAGONAL,
     attackRange: 3,
-    canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON],
+    canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON, ObstacleTypes.MYSTERY_BOX],
     points: 15,
     zombiePoints: 12
   },
   [PieceTypes.WARLOCK]: {
     move: [[2, 0], [0, 2], [2, 2]],
     attackRange: 2,
-    canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE],
+    canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
     points: 11
   },
   [PieceTypes.MONARCH]: {
     move: MovePatterns.ANY,
     attackRange: 1,
-    canPass: [ObstacleTypes.CAVE],
+    canPass: [ObstacleTypes.CAVE, ObstacleTypes.MYSTERY_BOX],
     points: 210
   },
   [PieceTypes.DUCHESS]: {
     move: MovePatterns.ANY,
     attackRange: 9,
-    canPass: [ObstacleTypes.RIVER],
+    canPass: [ObstacleTypes.RIVER, ObstacleTypes.MYSTERY_BOX],
     points: 27
   },
   [PieceTypes.NECROMANCER]: {
     move: [[1, 0], [0, 1], [1, 1]],
     attackRange: 8,
-    canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE],
+    canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE, ObstacleTypes.MYSTERY_BOX],
     points: 13
   }
 } as const

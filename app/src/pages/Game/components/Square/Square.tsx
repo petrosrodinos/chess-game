@@ -13,6 +13,9 @@ interface SquareProps {
   isHint: boolean
   isHintAttack: boolean
   hasNarc?: PlayerColor | null
+  isMysteryBoxSelectedObstacle?: boolean
+  isMysteryBoxSelectedEmptyTile?: boolean
+  isMysteryBoxSelectedFigure?: boolean
   onClick: () => void
 }
 
@@ -27,6 +30,9 @@ export const Square = ({
   isHint,
   isHintAttack,
   hasNarc = null,
+  isMysteryBoxSelectedObstacle = false,
+  isMysteryBoxSelectedEmptyTile = false,
+  isMysteryBoxSelectedFigure = false,
   onClick
 }: SquareProps) => {
   const isLight = (position.row + position.col) % 2 === 0
@@ -35,6 +41,9 @@ export const Square = ({
     const baseClasses = 'w-10 h-10 md:w-12 md:h-12 flex items-center justify-center cursor-pointer relative transition-all duration-200'
     
     if (cell && isObstacle(cell)) {
+      if (isMysteryBoxSelectedObstacle) {
+        return `${baseClasses} bg-stone-600 ring-4 ring-orange-500 ring-inset animate-pulse`
+      }
       return `${baseClasses} bg-stone-600 cursor-default`
     }
     
@@ -42,7 +51,11 @@ export const Square = ({
       ? 'bg-amber-100 hover:bg-amber-200'
       : 'bg-emerald-700 hover:bg-emerald-600'
 
-    if (isSelected) {
+    if (isMysteryBoxSelectedEmptyTile) {
+      colorClasses = 'bg-blue-400 ring-4 ring-blue-500 ring-inset animate-pulse'
+    } else if (isMysteryBoxSelectedFigure) {
+      colorClasses = 'bg-purple-400 ring-4 ring-purple-600 ring-inset animate-pulse'
+    } else if (isSelected) {
       colorClasses = 'bg-yellow-400 ring-4 ring-yellow-500 ring-inset'
     } else if (isHintAttack) {
       colorClasses = isLight ? 'bg-rose-300' : 'bg-rose-600'

@@ -144,3 +144,36 @@ export interface Narc {
   ownerColor: PlayerColor
   bomberId: string
 }
+
+export const MysteryBoxOptions = {
+  FIGURE_SWAP: 1,
+  HOPLITE_SACRIFICE_REVIVE: 2,
+  OBSTACLE_SWAP: 3
+} as const
+
+export type MysteryBoxOption = typeof MysteryBoxOptions[keyof typeof MysteryBoxOptions]
+
+export const MysteryBoxPhases = {
+  WAITING_FIRST_FIGURE: 'waiting_first_figure',
+  WAITING_SECOND_FIGURE: 'waiting_second_figure',
+  WAITING_HOPLITE_SACRIFICE: 'waiting_hoplite_sacrifice',
+  WAITING_REVIVE_FIGURE: 'waiting_revive_figure',
+  WAITING_REVIVE_PLACEMENT: 'waiting_revive_placement',
+  WAITING_OBSTACLE_SELECTION: 'waiting_obstacle_selection',
+  WAITING_EMPTY_TILE_SELECTION: 'waiting_empty_tile_selection'
+} as const
+
+export type MysteryBoxPhase = typeof MysteryBoxPhases[keyof typeof MysteryBoxPhases]
+
+export interface MysteryBoxState {
+  isActive: boolean
+  option: MysteryBoxOption | null
+  phase: MysteryBoxPhase | null
+  triggerPosition: Position | null
+  diceRoll: number | null
+  firstFigurePosition: Position | null
+  selectedObstacles: Position[]
+  selectedEmptyTiles: Position[]
+  revivablePieces: Piece[]
+  selectedRevivePiece: Piece | null
+}
