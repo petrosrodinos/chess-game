@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { GameState, Position, BotDifficulty, HintMove, BoardSizeKey, PlayerColor, CellContent } from '../pages/Game/types'
-import { isPiece, isObstacle, BOARD_SIZES, PlayerColors, BotDifficulties, BoardSizeKeys } from '../pages/Game/types'
+import type { GameState, Position, BotDifficulty, HintMove, BoardSizeKey, PlayerColor, CellContent, SwapTarget } from '../pages/Game/types'
+import { isPiece, isObstacle, BOARD_SIZES, PlayerColors, BotDifficulties, BoardSizeKeys, PieceTypes } from '../pages/Game/types'
 import { DEFAULT_BOARD_SIZE } from '../pages/Game/constants'
 import {
     createInitialBoard,
@@ -10,7 +10,9 @@ import {
     hasLegalMoves,
     isMonarchCaptured,
     getBotMove,
-    getHintMove
+    getHintMove,
+    getValidSwapTargets,
+    executeSwap
 } from '../pages/Game/utils'
 
 interface HistoryEntry {
@@ -72,6 +74,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             selectedPosition: null,
             validMoves: [],
             validAttacks: [],
+            validSwaps: [],
             moveHistory: [],
             capturedPieces: { white: [], black: [] },
             lastMove: null,
@@ -117,6 +120,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const isValidAttackTarget = gameState.validAttacks.some(
                 a => a.row === pos.row && a.col === pos.col
             )
+            const swapTarget = gameState.validSwaps.find(
+                s => s.position.row === pos.row && s.position.col === pos.col
+            )
+
+            if (swapTarget) {
+                const swapResult = executeSwap(gameState.board, gameState.selectedPosition, pos)
+
+                if (swapResult.success) {
+                    const newHistory = [...history, { gameState }]
+                    const nextPlayer = gameState.currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
+                    const { gameOver, winner } = checkGameOver(swapResult.board, nextPlayer, gameState.boardSize)
+
+                    set({
+                        gameState: {
+                            ...gameState,
+                            board: swapResult.board,
+                            currentPlayer: nextPlayer,
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: [],
+                            lastMove: null,
+                            gameOver,
+                            winner
+                        },
+                        history: newHistory
+                    })
+                    return
+                }
+            }
 
             if (isValidMoveTarget || isValidAttackTarget) {
                 const newHistory = [...history, { gameState }]
@@ -131,7 +164,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 )
 
                 let nextPlayer = gameState.currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
-                
+
                 if (move.terminatedByNarc) {
                     nextPlayer = gameState.currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
                 }
@@ -155,6 +188,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         selectedPosition: null,
                         validMoves: [],
                         validAttacks: [],
+                        validSwaps: [],
                         moveHistory: [...gameState.moveHistory, move],
                         capturedPieces: newCaptured,
                         lastMove: move,
@@ -170,12 +204,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (cell && isPiece(cell) && cell.color === gameState.currentPlayer) {
                 const moves = getValidMoves(gameState.board, pos, gameState.boardSize)
                 const attacks = getValidAttacks(gameState.board, pos, gameState.boardSize)
+                const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
+                    ? getValidSwapTargets(gameState.board, pos).map(s => ({
+                        position: s.position,
+                        swapType: s.swapType
+                    }))
+                    : []
                 set({
                     gameState: {
                         ...gameState,
                         selectedPosition: pos,
                         validMoves: moves,
-                        validAttacks: attacks
+                        validAttacks: attacks,
+                        validSwaps: swaps
                     }
                 })
                 return
@@ -186,7 +227,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     ...gameState,
                     selectedPosition: null,
                     validMoves: [],
-                    validAttacks: []
+                    validAttacks: [],
+                    validSwaps: []
                 }
             })
             return
@@ -195,12 +237,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (cell && isPiece(cell) && cell.color === gameState.currentPlayer) {
             const moves = getValidMoves(gameState.board, pos, gameState.boardSize)
             const attacks = getValidAttacks(gameState.board, pos, gameState.boardSize)
+            const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
+                ? getValidSwapTargets(gameState.board, pos).map(s => ({
+                    position: s.position,
+                    swapType: s.swapType
+                }))
+                : []
             set({
                 gameState: {
                     ...gameState,
                     selectedPosition: pos,
                     validMoves: moves,
-                    validAttacks: attacks
+                    validAttacks: attacks,
+                    validSwaps: swaps
                 }
             })
         }
@@ -258,6 +307,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 selectedPosition: null,
                 validMoves: [],
                 validAttacks: [],
+                validSwaps: [],
                 moveHistory: [],
                 capturedPieces: { white: [], black: [] },
                 lastMove: null,
@@ -295,7 +345,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     ...lastEntry.gameState,
                     selectedPosition: null,
                     validMoves: [],
-                    validAttacks: []
+                    validAttacks: [],
+                    validSwaps: []
                 },
                 history: newHistory
             })

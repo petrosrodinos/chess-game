@@ -8,6 +8,7 @@ interface SquareProps {
   isSelected: boolean
   isValidMove: boolean
   isValidAttack: boolean
+  isValidSwap: boolean
   isLastMove: boolean
   isHint: boolean
   isHintAttack: boolean
@@ -21,6 +22,7 @@ export const Square = ({
   isSelected,
   isValidMove,
   isValidAttack,
+  isValidSwap,
   isLastMove,
   isHint,
   isHintAttack,
@@ -48,6 +50,8 @@ export const Square = ({
       colorClasses = isLight ? 'bg-cyan-300' : 'bg-cyan-600'
     } else if (isLastMove) {
       colorClasses = isLight ? 'bg-yellow-200' : 'bg-yellow-600'
+    } else if (isValidSwap) {
+      colorClasses = isLight ? 'bg-violet-200 hover:bg-violet-300' : 'bg-violet-700 hover:bg-violet-600'
     } else if (isValidAttack) {
       colorClasses = isLight ? 'bg-rose-200 hover:bg-rose-300' : 'bg-rose-700 hover:bg-rose-600'
     }
@@ -70,6 +74,9 @@ export const Square = ({
       )}
       {isValidAttack && cell && isPiece(cell) && (
         <div className="absolute w-full h-full border-4 border-rose-500 rounded-sm animate-pulse" />
+      )}
+      {isValidSwap && cell && isPiece(cell) && (
+        <div className="absolute w-full h-full border-4 border-violet-500 rounded-sm animate-pulse" />
       )}
       {(isHint || isHintAttack) && (
         <div className={`absolute inset-0 ring-4 ${isHintAttack ? 'ring-rose-400' : 'ring-cyan-400'} ring-inset animate-pulse`} />

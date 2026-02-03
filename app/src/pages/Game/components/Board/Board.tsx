@@ -7,7 +7,7 @@ import { useGameStore } from '../../../../store/gameStore'
 import { useUIStore } from '../../../../store/uiStore'
 import { getValidMoves, getValidAttacks, getAllNarcNetPositions } from '../../utils'
 import { isPiece } from '../../types'
-import type { Board as BoardType, BoardSize, Position, Move } from '../../types'
+import type { Board as BoardType, BoardSize, Position, Move, SwapTarget } from '../../types'
 
 interface BoardProps {
     isOnline?: boolean
@@ -16,6 +16,7 @@ interface BoardProps {
     onlineSelectedPosition?: Position | null
     onlineValidMoves?: Position[]
     onlineValidAttacks?: Position[]
+    onlineValidSwaps?: SwapTarget[]
     onlineLastMove?: Move | null
     onSquareClick?: (pos: Position) => void
 }
@@ -27,6 +28,7 @@ export const Board = ({
     onlineSelectedPosition,
     onlineValidMoves = [],
     onlineValidAttacks = [],
+    onlineValidSwaps = [],
     onlineLastMove,
     onSquareClick
 }: BoardProps) => {
@@ -38,6 +40,7 @@ export const Board = ({
     const selectedPosition = isOnline ? onlineSelectedPosition : gameState.selectedPosition
     const validMoves = isOnline ? onlineValidMoves : gameState.validMoves
     const validAttacks = isOnline ? onlineValidAttacks : gameState.validAttacks
+    const validSwaps = isOnline ? onlineValidSwaps : gameState.validSwaps
     const lastMove = isOnline ? onlineLastMove : gameState.lastMove
     const currentHintMove = isOnline ? null : hintMove
 
@@ -75,6 +78,9 @@ export const Board = ({
 
     const isValidAttack = (row: number, col: number) =>
         validAttacks.some(a => a.row === row && a.col === col)
+
+    const isValidSwap = (row: number, col: number) =>
+        validSwaps.some(s => s.position.row === row && s.position.col === col)
 
     const isLastMoveSquare = (row: number, col: number) =>
         lastMove != null &&
@@ -168,6 +174,7 @@ export const Board = ({
                                                     isSelected={isSelected(rowIndex, colIndex) || (!isOnline && helpEnabled && helpPosition?.row === rowIndex && helpPosition?.col === colIndex)}
                                                     isValidMove={isValidMove(rowIndex, colIndex) || isHelpMove(rowIndex, colIndex) || isDevModeTarget(rowIndex, colIndex)}
                                                     isValidAttack={isValidAttack(rowIndex, colIndex) || isHelpAttack(rowIndex, colIndex)}
+                                                    isValidSwap={isValidSwap(rowIndex, colIndex)}
                                                     isLastMove={isLastMoveSquare(rowIndex, colIndex)}
                                                     isHint={isHint(rowIndex, colIndex)}
                                                     isHintAttack={isHintAttack(rowIndex, colIndex)}

@@ -31,3 +31,10 @@ export {
   getAllNarcNetPositions
 } from './narcUtils'
 export type { NarcNetPosition } from './narcUtils'
+export {
+  isValidSwap,
+  getValidSwapTargets,
+  executeSwap,
+  canInitiateSwap
+} from './swapUtils'
+export type { SwapResult, SwapTarget } from './swapUtils'

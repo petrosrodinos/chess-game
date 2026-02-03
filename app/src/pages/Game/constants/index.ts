@@ -201,6 +201,7 @@ export const INITIAL_GAME_STATE: GameState = {
   selectedPosition: null,
   validMoves: [],
   validAttacks: [],
+  validSwaps: [],
   moveHistory: [],
   capturedPieces: { white: [], black: [] },
   lastMove: null,

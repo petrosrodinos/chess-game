@@ -111,6 +111,11 @@ export interface Move {
   terminatedByNarc?: boolean
 }
 
+export interface SwapTarget {
+  position: Position
+  swapType: 'warlock-monarch' | 'hoplite-monarch'
+}
+
 export interface GameState {
   board: Board
   boardSize: BoardSize
@@ -118,6 +123,7 @@ export interface GameState {
   selectedPosition: Position | null
   validMoves: Position[]
   validAttacks: Position[]
+  validSwaps: SwapTarget[]
   moveHistory: Move[]
   capturedPieces: { white: Piece[]; black: Piece[] }
   lastMove: Move | null
