@@ -5,6 +5,7 @@ import { connectSocket } from '../lib/socket'
 interface UseSocketReturn {
     socket: Socket | null
     isConnected: boolean
+    connectionError: Error | null
     emit: <T>(event: string, data: T) => void
     on: <T>(event: string, callback: (data: T) => void) => void
     off: (event: string) => void
@@ -13,6 +14,7 @@ interface UseSocketReturn {
 export const useSocket = (): UseSocketReturn => {
     const socketRef = useRef<Socket | null>(null)
     const [isConnected, setIsConnected] = useState(false)
+    const [connectionError, setConnectionError] = useState<Error | null>(null)
 
     useEffect(() => {
         const socket = connectSocket()
@@ -20,14 +22,21 @@ export const useSocket = (): UseSocketReturn => {
 
         const handleConnect = (): void => {
             setIsConnected(true)
+            setConnectionError(null)
         }
 
         const handleDisconnect = (): void => {
             setIsConnected(false)
         }
 
+        const handleConnectError = (error: Error): void => {
+            setConnectionError(error)
+            setIsConnected(false)
+        }
+
         socket.on('connect', handleConnect)
         socket.on('disconnect', handleDisconnect)
+        socket.on('connect_error', handleConnectError)
 
         if (socket.connected) {
             setIsConnected(true)
@@ -36,6 +45,7 @@ export const useSocket = (): UseSocketReturn => {
         return () => {
             socket.off('connect', handleConnect)
             socket.off('disconnect', handleDisconnect)
+            socket.off('connect_error', handleConnectError)
         }
     }, [])
 
@@ -54,6 +64,7 @@ export const useSocket = (): UseSocketReturn => {
     return {
         socket: socketRef.current,
         isConnected,
+        connectionError,
         emit,
         on,
         off

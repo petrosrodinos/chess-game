@@ -12,7 +12,7 @@ import type { Position } from '../pages/Game/types'
 export const useOnlineGame = () => {
     const [searchParams] = useSearchParams()
     const gameCode = searchParams.get('code')
-    const { emit, on, off, isConnected, socket } = useSocket()
+    const { emit, on, off, isConnected, socket, connectionError } = useSocket()
     const userId = useAuthStore(state => state.userId)
     const hasJoinedRef = useRef(false)
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -40,6 +40,14 @@ export const useOnlineGame = () => {
         isMyTurn,
         getGameStateForSync
     } = useOnlineGameStore()
+
+    useEffect(() => {
+        if (connectionError && isLoading) {
+            setLoading(false)
+            setError('Failed to connect to game server.')
+            toast.error('Failed to connect to game server. Please try again.')
+        }
+    }, [connectionError, isLoading, setLoading, setError])
 
     useEffect(() => {
         if (!gameCode) {
