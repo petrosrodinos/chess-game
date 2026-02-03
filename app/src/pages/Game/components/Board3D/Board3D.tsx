@@ -2,7 +2,7 @@ import { Suspense, useMemo, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { isPiece, isObstacle, PlayerColors } from '../../types'
-import type { Board as BoardType, BoardSize, Position, Move } from '../../types'
+import type { Board as BoardType, BoardSize, Position, Move, SwapTarget } from '../../types'
 import { Piece3D } from './Piece3D'
 import { BoardSquare3D } from './BoardSquare3D'
 import { Obstacle3D } from './Obstacle3D'
@@ -17,6 +17,7 @@ interface GameSceneProps {
   onlineSelectedPosition?: Position | null
   onlineValidMoves?: Position[]
   onlineValidAttacks?: Position[]
+  onlineValidSwaps?: SwapTarget[]
   onlineLastMove?: Move | null
   onSquareClick?: (pos: Position) => void
 }
@@ -28,6 +29,7 @@ const GameScene = ({
   onlineSelectedPosition,
   onlineValidMoves = [],
   onlineValidAttacks = [],
+  onlineValidSwaps = [],
   onlineLastMove,
   onSquareClick
 }: GameSceneProps) => {
@@ -39,6 +41,7 @@ const GameScene = ({
   const selectedPosition = isOnline ? onlineSelectedPosition : gameState.selectedPosition
   const validMoves = isOnline ? onlineValidMoves : gameState.validMoves
   const validAttacks = isOnline ? onlineValidAttacks : gameState.validAttacks
+  const validSwaps = isOnline ? onlineValidSwaps : gameState.validSwaps
   const lastMove = isOnline ? onlineLastMove : gameState.lastMove
   const currentHintMove = isOnline ? null : hintMove
 
@@ -81,6 +84,9 @@ const GameScene = ({
 
   const isValidAttack = (row: number, col: number) =>
     validAttacks.some(a => a.row === row && a.col === col)
+
+  const isValidSwap = (row: number, col: number) =>
+    validSwaps.some(s => s.position.row === row && s.position.col === col)
 
   const isLastMoveSquare = (row: number, col: number) =>
     lastMove != null &&
@@ -165,6 +171,7 @@ const GameScene = ({
               isLight={isLight}
               isValidMove={isValidMove(rowIndex, colIndex) || isHelpMove(rowIndex, colIndex) || isDevModeTarget(rowIndex, colIndex)}
               isValidAttack={isValidAttack(rowIndex, colIndex) || isHelpAttack(rowIndex, colIndex)}
+              isValidSwap={isValidSwap(rowIndex, colIndex)}
               isLastMove={isLastMoveSquare(rowIndex, colIndex)}
               isHint={isHintSquare(rowIndex, colIndex)}
               isHintAttack={isHintAttackSquare(rowIndex, colIndex)}
@@ -201,6 +208,7 @@ const GameScene = ({
                 isSelected={isSelected(rowIndex, colIndex) || (helpEnabled && helpPosition?.row === rowIndex && helpPosition?.col === colIndex)}
                 isHint={isHintPiece(rowIndex, colIndex)}
                 isTargeted={isValidAttack(rowIndex, colIndex) || isHelpAttack(rowIndex, colIndex)}
+                isSwapTarget={isValidSwap(rowIndex, colIndex)}
                 onClick={() => handleSquareClick(rowIndex, colIndex)}
               />
             )
@@ -241,6 +249,7 @@ interface Board3DProps {
   onlineSelectedPosition?: Position | null
   onlineValidMoves?: Position[]
   onlineValidAttacks?: Position[]
+  onlineValidSwaps?: SwapTarget[]
   onlineLastMove?: Move | null
   onSquareClick?: (pos: Position) => void
 }
@@ -252,6 +261,7 @@ export const Board3D = ({
   onlineSelectedPosition,
   onlineValidMoves = [],
   onlineValidAttacks = [],
+  onlineValidSwaps = [],
   onlineLastMove,
   onSquareClick
 }: Board3DProps) => {
@@ -278,6 +288,7 @@ export const Board3D = ({
             onlineSelectedPosition={onlineSelectedPosition}
             onlineValidMoves={onlineValidMoves}
             onlineValidAttacks={onlineValidAttacks}
+            onlineValidSwaps={onlineValidSwaps}
             onlineLastMove={onlineLastMove}
             onSquareClick={onSquareClick}
           />

@@ -5,6 +5,7 @@ interface BoardSquare3DProps {
   isLight: boolean
   isValidMove: boolean
   isValidAttack: boolean
+  isValidSwap: boolean
   isLastMove: boolean
   isHint: boolean
   isHintAttack: boolean
@@ -17,6 +18,7 @@ export const BoardSquare3D = ({
   isLight,
   isValidMove,
   isValidAttack,
+  isValidSwap,
   isLastMove,
   isHint,
   isHintAttack,
@@ -30,8 +32,10 @@ export const BoardSquare3D = ({
     if (isHintAttack) return isLight ? '#fda4af' : '#be123c'
     if (isHint) return isLight ? '#67e8f9' : '#0891b2'
     if (isLastMove) return isLight ? '#fde047' : '#ca8a04'
+    if (hovered && isValidSwap) return '#a78bfa'
     if (hovered && isValidAttack) return '#f87171'
     if (hovered && isValidMove) return '#4ade80'
+    if (isValidSwap) return isLight ? '#ddd6fe' : '#7c3aed'
     if (isValidAttack) return isLight ? '#fecaca' : '#dc2626'
     if (isLight) return '#e8d5b5'
     return '#8b6914'
@@ -63,6 +67,13 @@ export const BoardSquare3D = ({
         <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.25, 0.35, 32]} />
           <meshBasicMaterial color="#ef4444" transparent opacity={0.8} />
+        </mesh>
+      )}
+
+      {isValidSwap && !isObstacle && (
+        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.25, 0.35, 32]} />
+          <meshBasicMaterial color="#8b5cf6" transparent opacity={0.8} />
         </mesh>
       )}
     </group>

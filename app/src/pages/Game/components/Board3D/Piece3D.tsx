@@ -12,6 +12,7 @@ interface Piece3DProps {
   isSelected: boolean
   isHint: boolean
   isTargeted: boolean
+  isSwapTarget: boolean
   onClick: () => void
 }
 
@@ -232,7 +233,7 @@ const DefaultPiece = ({ color }: { color: PlayerColor }) => (
   </group>
 )
 
-export const Piece3D = ({ type, color, position, isSelected, isHint, isTargeted, onClick }: Piece3DProps) => {
+export const Piece3D = ({ type, color, position, isSelected, isHint, isTargeted, isSwapTarget, onClick }: Piece3DProps) => {
   const groupRef = useRef<Group>(null)
   const currentPosRef = useRef<THREE.Vector3 | null>(null)
   const targetPosRef = useRef<THREE.Vector3>(new THREE.Vector3(...position))
@@ -266,6 +267,9 @@ export const Piece3D = ({ type, color, position, isSelected, isHint, isTargeted,
       groupRef.current.rotation.y = state.clock.elapsedTime * 2
     } else if (isHint) {
       groupRef.current.position.y = baseY + Math.sin(state.clock.elapsedTime * 4) * 0.05
+      groupRef.current.rotation.y = 0
+    } else if (isSwapTarget) {
+      groupRef.current.position.y = baseY + Math.sin(state.clock.elapsedTime * 4) * 0.04
       groupRef.current.rotation.y = 0
     } else if (isTargeted) {
       groupRef.current.position.y = baseY + Math.sin(state.clock.elapsedTime * 5) * 0.03
@@ -329,6 +333,12 @@ export const Piece3D = ({ type, color, position, isSelected, isHint, isTargeted,
         <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.3, 0.4, 32]} />
           <meshBasicMaterial color="#ff4444" transparent opacity={0.9} />
+        </mesh>
+      )}
+      {isSwapTarget && !isSelected && (
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.3, 0.4, 32]} />
+          <meshBasicMaterial color="#8b5cf6" transparent opacity={0.9} />
         </mesh>
       )}
     </group>
