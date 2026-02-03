@@ -44,6 +44,54 @@ const getAdjacentPositions = (row: number, col: number): { row: number; col: num
   ]
 }
 
+const placeMysteryBoxes = (
+  board: Board,
+  rows: number,
+  cols: number,
+  count: number
+): void => {
+  const centerCol = Math.floor(cols / 2)
+  const leftHalfEnd = centerCol - 1
+  const rightHalfStart = centerCol + 1
+
+  const boxesPerHalf = Math.floor(count / 2)
+  const extraBox = count % 2
+
+  let placedLeft = 0
+  let placedRight = 0
+  let attempts = 0
+  const maxAttempts = count * 100
+
+  while ((placedLeft < boxesPerHalf || placedRight < boxesPerHalf + extraBox) && attempts < maxAttempts) {
+    attempts++
+
+    const targetLeft = placedLeft < boxesPerHalf
+    const targetRight = placedRight < boxesPerHalf + extraBox
+
+    let col: number
+    if (targetLeft && (!targetRight || Math.random() < 0.5)) {
+      col = Math.floor(Math.random() * (leftHalfEnd + 1))
+    } else if (targetRight) {
+      col = rightHalfStart + Math.floor(Math.random() * (cols - rightHalfStart))
+    } else {
+      continue
+    }
+
+    const row = Math.floor(Math.random() * rows)
+
+    if (isProtectedZone(row, col, rows)) continue
+    if (board[row][col] !== null) continue
+
+    board[row][col] = { type: ObstacleTypes.MYSTERY_BOX }
+
+    if (col <= leftHalfEnd) {
+      placedLeft++
+    } else {
+      placedRight++
+    }
+  }
+}
+
 const placeGroupedObstacle = (
   board: Board,
   obstacleType: ObstacleType,
@@ -93,6 +141,11 @@ const placeObstacles = (board: Board, rows: number, cols: number): void => {
   for (const obstacleType of obstacleTypes) {
     const count = obstacleCounts[obstacleType]
     let placed = 0
+
+    if (obstacleType === ObstacleTypes.MYSTERY_BOX) {
+      placeMysteryBoxes(board, rows, cols, count)
+      continue
+    }
 
     const shouldGroup = isSmallBoard && GROUPED_OBSTACLES.includes(obstacleType)
 
