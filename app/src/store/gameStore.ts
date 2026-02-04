@@ -3,6 +3,7 @@ import { toast } from 'react-toastify'
 import type { GameState, Position, BotDifficulty, HintMove, BoardSizeKey, PlayerColor, CellContent, SwapTarget, MysteryBoxState, Piece } from '../pages/Game/types'
 import { isPiece, isObstacle, BOARD_SIZES, PlayerColors, BotDifficulties, BoardSizeKeys, PieceTypes, MysteryBoxOptions, MysteryBoxPhases, ObstacleTypes } from '../pages/Game/types'
 import { DEFAULT_BOARD_SIZE } from '../pages/Game/constants'
+import type { GameSession, Player } from '../features/game/interfaces'
 import {
     createInitialBoard,
     getValidMoves,
@@ -32,8 +33,14 @@ interface HistoryEntry {
     gameState: GameState
 }
 
+interface MysteryBoxTriggerResult {
+    triggered: boolean
+    option: number | null
+    diceRoll: number | null
+    optionName: string | null
+}
+
 interface GameStore {
-    // State
     gameState: GameState
     boardSizeKey: BoardSizeKey
     history: HistoryEntry[]
@@ -43,13 +50,20 @@ interface GameStore {
     hintMove: HintMove | null
     devModeSelected: Position | null
     mysteryBoxState: MysteryBoxState
+    selectedPosition: Position | null
+    validMoves: Position[]
+    validAttacks: Position[]
+    validSwaps: SwapTarget[]
 
-    // Computed
+    gameSession: GameSession | null
+    currentPlayerId: string | null
+    isLoading: boolean
+    error: string | null
+
     canUndo: () => boolean
     canHint: () => boolean
 
-    // Actions
-    selectSquare: (pos: Position) => void
+    selectSquare: (pos: Position, isOnline?: boolean) => MysteryBoxTriggerResult | boolean
     devModeSelectSquare: (pos: Position) => void
     resetGame: (newBoardSizeKey?: BoardSizeKey) => void
     toggleBot: () => void
@@ -58,11 +72,24 @@ interface GameStore {
     showHint: () => void
     processBotMove: () => void
 
-    // MysteryBox Actions
-    handleMysteryBoxSelection: (pos: Position) => void
-    selectRevivePiece: (piece: Piece) => void
+    handleMysteryBoxSelection: (pos: Position, isOnline?: boolean) => boolean
+    selectRevivePiece: (piece: Piece, isOnline?: boolean) => void
     confirmObstacleSelection: () => void
     cancelMysteryBox: () => void
+    resetMysteryBoxState: () => void
+
+    setGameSession: (session: GameSession) => void
+    setCurrentPlayerId: (playerId: string) => void
+    initializeBoard: () => void
+    syncFromServer: (session: GameSession) => void
+    setLoading: (loading: boolean) => void
+    setError: (error: string | null) => void
+    reset: () => void
+
+    getCurrentPlayer: () => Player | undefined
+    getCurrentTurnPlayer: () => Player | undefined
+    isMyTurn: () => boolean
+    getGameStateForSync: () => GameState | null
 }
 
 const checkGameOver = (board: GameState['board'], nextPlayer: PlayerColor, boardSize: GameState['boardSize']) => {
@@ -83,26 +110,27 @@ const checkGameOver = (board: GameState['board'], nextPlayer: PlayerColor, board
     return { gameOver: false, winner: null }
 }
 
+const createInitialGameState = (): GameState => {
+    const boardSize = BOARD_SIZES[BoardSizeKeys.SMALL] || DEFAULT_BOARD_SIZE
+    return {
+        board: createInitialBoard(boardSize),
+        boardSize: boardSize,
+        currentPlayer: PlayerColors.WHITE,
+        selectedPosition: null,
+        validMoves: [],
+        validAttacks: [],
+        validSwaps: [],
+        moveHistory: [],
+        capturedPieces: { white: [], black: [] },
+        lastMove: null,
+        gameOver: false,
+        winner: null,
+        narcs: []
+    }
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
-    // Initial state
-    gameState: (() => {
-        const boardSize = BOARD_SIZES[BoardSizeKeys.SMALL] || DEFAULT_BOARD_SIZE
-        return {
-            board: createInitialBoard(boardSize),
-            boardSize: boardSize,
-            currentPlayer: PlayerColors.WHITE,
-            selectedPosition: null,
-            validMoves: [],
-            validAttacks: [],
-            validSwaps: [],
-            moveHistory: [],
-            capturedPieces: { white: [], black: [] },
-            lastMove: null,
-            gameOver: false,
-            winner: null,
-            narcs: []
-        }
-    })(),
+    gameState: createInitialGameState(),
     boardSizeKey: BoardSizeKeys.SMALL,
     history: [],
     botEnabled: false,
@@ -111,8 +139,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     hintMove: null,
     devModeSelected: null,
     mysteryBoxState: getInitialMysteryBoxState(),
+    selectedPosition: null,
+    validMoves: [],
+    validAttacks: [],
+    validSwaps: [],
 
-    // Computed values
+    gameSession: null,
+    currentPlayerId: null,
+    isLoading: false,
+    error: null,
+
     canUndo: () => {
         const { history, gameState, botThinking } = get()
         return history.length > 0 && gameState.currentPlayer === PlayerColors.WHITE && !botThinking
@@ -123,17 +159,246 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return gameState.currentPlayer === PlayerColors.WHITE && !gameState.gameOver && !botThinking
     },
 
-    // Actions
-    selectSquare: (pos: Position) => {
-        const { gameState, botEnabled, history, mysteryBoxState } = get()
+    selectSquare: (pos: Position, isOnline = false): MysteryBoxTriggerResult | boolean => {
+        const { gameState, botEnabled, history, mysteryBoxState, gameSession, currentPlayerId, selectedPosition, validMoves, validAttacks, validSwaps } = get()
 
-        if (botEnabled && gameState.currentPlayer === PlayerColors.BLACK) return
-        if (gameState.gameOver) return
+        if (isOnline) {
+            if (!gameSession || !gameState) return false
+            if (!currentPlayerId) return false
+
+            const myPlayer = gameSession.players.find(p => p.id === currentPlayerId)
+            if (!myPlayer) return false
+            if (myPlayer.color !== gameState.currentPlayer) return false
+            if (gameState.gameOver) return false
+
+            if (mysteryBoxState.isActive) {
+                return false
+            }
+
+            const { board, boardSize } = gameState
+            const cell = board[pos.row][pos.col]
+
+            if (selectedPosition) {
+                const isValidMoveTarget = validMoves.some(
+                    m => m.row === pos.row && m.col === pos.col
+                )
+                const isValidAttackTarget = validAttacks.some(
+                    a => a.row === pos.row && a.col === pos.col
+                )
+                const swapTarget = validSwaps.find(
+                    s => s.position.row === pos.row && s.position.col === pos.col
+                )
+
+                if (swapTarget) {
+                    const swapResult = executeSwap(board, selectedPosition, pos)
+
+                    if (swapResult.success) {
+                        const nextPlayer = gameState.currentPlayer === PlayerColors.WHITE
+                            ? PlayerColors.BLACK
+                            : PlayerColors.WHITE
+                        const { gameOver, winner } = checkGameOver(swapResult.board, nextPlayer, boardSize)
+
+                        set({
+                            gameState: {
+                                ...gameState,
+                                board: swapResult.board,
+                                currentPlayer: nextPlayer,
+                                selectedPosition: null,
+                                validMoves: [],
+                                validAttacks: [],
+                                validSwaps: [],
+                                lastMove: null,
+                                gameOver,
+                                winner
+                            },
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: []
+                        })
+
+                        return true
+                    }
+                }
+
+                if (isValidMoveTarget || isValidAttackTarget) {
+                    const targetCell = board[pos.row][pos.col]
+                    const isMysteryBox = targetCell && isObstacle(targetCell) && targetCell.type === ObstacleTypes.MYSTERY_BOX
+
+                    if (isMysteryBox && !isValidAttackTarget) {
+                        const option = getRandomMysteryBoxOption(gameState.currentPlayer, gameState.capturedPieces)
+                        const diceRoll = option === MysteryBoxOptions.OBSTACLE_SWAP ? rollDice() : null
+
+                        const optionNames: Record<number, string> = {
+                            [MysteryBoxOptions.FIGURE_SWAP]: 'Figure Swap',
+                            [MysteryBoxOptions.HOPLITE_SACRIFICE_REVIVE]: 'Hoplite Sacrifice & Revive',
+                            [MysteryBoxOptions.OBSTACLE_SWAP]: 'Obstacle Swap'
+                        }
+
+                        const boardWithoutMysteryBox = removeMysteryBoxFromBoard(board, pos)
+                        const { newBoard: movedBoard, move, newNarcs } = makeMove(
+                            boardWithoutMysteryBox,
+                            selectedPosition,
+                            pos,
+                            boardSize,
+                            false,
+                            gameState.narcs
+                        )
+
+                        const newCaptured = { ...gameState.capturedPieces }
+                        if (move.captured) {
+                            if (move.captured.color === PlayerColors.WHITE) {
+                                newCaptured.white = [...newCaptured.white, move.captured]
+                            } else {
+                                newCaptured.black = [...newCaptured.black, move.captured]
+                            }
+                        }
+
+                        const revivablePieces = option === MysteryBoxOptions.HOPLITE_SACRIFICE_REVIVE
+                            ? getRevivablePieces(gameState.currentPlayer, newCaptured)
+                            : []
+
+                        set({
+                            gameState: {
+                                ...gameState,
+                                board: movedBoard,
+                                selectedPosition: null,
+                                validMoves: [],
+                                validAttacks: [],
+                                validSwaps: [],
+                                moveHistory: [...gameState.moveHistory, move],
+                                capturedPieces: newCaptured,
+                                lastMove: move,
+                                narcs: newNarcs
+                            },
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: [],
+                            mysteryBoxState: {
+                                isActive: true,
+                                option,
+                                phase: getPhaseForOption(option),
+                                triggerPosition: pos,
+                                diceRoll,
+                                firstFigurePosition: null,
+                                selectedObstacles: [],
+                                selectedEmptyTiles: [],
+                                revivablePieces,
+                                selectedRevivePiece: null
+                            }
+                        })
+
+                        return {
+                            triggered: true,
+                            option,
+                            diceRoll,
+                            optionName: optionNames[option]
+                        }
+                    }
+
+                    const { newBoard, move, newNarcs } = makeMove(
+                        board,
+                        selectedPosition,
+                        pos,
+                        boardSize,
+                        isValidAttackTarget,
+                        gameState.narcs
+                    )
+
+                    const nextPlayer = gameState.currentPlayer === PlayerColors.WHITE
+                        ? PlayerColors.BLACK
+                        : PlayerColors.WHITE
+                    const { gameOver, winner } = checkGameOver(newBoard, nextPlayer, boardSize)
+
+                    const newCaptured = { ...gameState.capturedPieces }
+                    if (move.captured) {
+                        if (move.captured.color === PlayerColors.WHITE) {
+                            newCaptured.white = [...newCaptured.white, move.captured]
+                        } else {
+                            newCaptured.black = [...newCaptured.black, move.captured]
+                        }
+                    }
+
+                    set({
+                        gameState: {
+                            ...gameState,
+                            board: newBoard,
+                            currentPlayer: nextPlayer,
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: [],
+                            moveHistory: [...gameState.moveHistory, move],
+                            capturedPieces: newCaptured,
+                            lastMove: move,
+                            gameOver,
+                            winner,
+                            narcs: newNarcs
+                        },
+                        selectedPosition: null,
+                        validMoves: [],
+                        validAttacks: [],
+                        validSwaps: []
+                    })
+
+                    return true
+                }
+
+                if (cell && isPiece(cell) && cell.color === myPlayer.color) {
+                    const moves = getValidMoves(board, pos, boardSize)
+                    const attacks = getValidAttacks(board, pos, boardSize)
+                    const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
+                        ? getValidSwapTargets(board, pos).map(s => ({
+                            position: s.position,
+                            swapType: s.swapType
+                        }))
+                        : []
+                    set({
+                        selectedPosition: pos,
+                        validMoves: moves,
+                        validAttacks: attacks,
+                        validSwaps: swaps
+                    })
+                    return false
+                }
+
+                set({
+                    selectedPosition: null,
+                    validMoves: [],
+                    validAttacks: [],
+                    validSwaps: []
+                })
+                return false
+            }
+
+            if (cell && isPiece(cell) && cell.color === myPlayer.color) {
+                const moves = getValidMoves(board, pos, boardSize)
+                const attacks = getValidAttacks(board, pos, boardSize)
+                const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
+                    ? getValidSwapTargets(board, pos).map(s => ({
+                        position: s.position,
+                        swapType: s.swapType
+                    }))
+                    : []
+                set({
+                    selectedPosition: pos,
+                    validMoves: moves,
+                    validAttacks: attacks,
+                    validSwaps: swaps
+                })
+            }
+
+            return false
+        }
+
+        if (botEnabled && gameState.currentPlayer === PlayerColors.BLACK) return false
+        if (gameState.gameOver) return false
 
         set({ hintMove: null })
 
         if (mysteryBoxState.isActive) {
-            return
+            return false
         }
 
         const cell = gameState.board[pos.row][pos.col]
@@ -172,7 +437,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         },
                         history: newHistory
                     })
-                    return
+                    return true
                 }
             }
 
@@ -242,7 +507,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                             selectedRevivePiece: null
                         }
                     })
-                    return
+                    return true
                 }
 
                 const newHistory = [...history, { gameState }]
@@ -291,7 +556,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     },
                     history: newHistory
                 })
-                return
+                return true
             }
 
             if (cell && isPiece(cell) && cell.color === gameState.currentPlayer) {
@@ -312,7 +577,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         validSwaps: swaps
                     }
                 })
-                return
+                return false
             }
 
             set({
@@ -324,7 +589,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     validSwaps: []
                 }
             })
-            return
+            return false
         }
 
         if (cell && isPiece(cell) && cell.color === gameState.currentPlayer) {
@@ -346,6 +611,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 }
             })
         }
+
+        return false
     },
 
     devModeSelectSquare: (pos: Position) => {
@@ -411,7 +678,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             boardSizeKey: newBoardSizeKey ? newBoardSizeKey : currentSizeKey,
             history: [],
             botThinking: false,
-            hintMove: null
+            hintMove: null,
+            mysteryBoxState: getInitialMysteryBoxState()
         })
     },
 
@@ -511,9 +779,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         })
     },
 
-    handleMysteryBoxSelection: (pos: Position) => {
+    handleMysteryBoxSelection: (pos: Position, isOnline = false): boolean => {
         const { gameState, mysteryBoxState } = get()
-        if (!mysteryBoxState.isActive) return
+        if (!mysteryBoxState.isActive || !gameState) return false
 
         const { board, boardSize, capturedPieces, currentPlayer } = gameState
         const { option, phase, diceRoll, firstFigurePosition, selectedObstacles, selectedEmptyTiles, selectedRevivePiece } = mysteryBoxState
@@ -522,11 +790,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (phase === MysteryBoxPhases.WAITING_FIRST_FIGURE) {
                 const cell = board[pos.row][pos.col]
                 if (!cell || !isPiece(cell) || cell.color !== currentPlayer) {
-                    toast.warning('❌ Invalid Selection - Please click on one of YOUR pieces to begin the swap.', { autoClose: 3000 })
-                    return
+                    if (!isOnline) {
+                        toast.warning('❌ Invalid Selection - Please click on one of YOUR pieces to begin the swap.', { autoClose: 3000 })
+                    }
+                    return false
                 }
 
-                toast.success(`✅ First Piece Selected! Now click on ANOTHER piece of yours to swap positions with.`, { autoClose: 4000 })
+                if (!isOnline) {
+                    toast.success(`✅ First Piece Selected! Now click on ANOTHER piece of yours to swap positions with.`, { autoClose: 4000 })
+                } else {
+                    toast.info('✨ Now select another piece to swap positions with!', { autoClose: 4000 })
+                }
 
                 set({
                     mysteryBoxState: {
@@ -535,27 +809,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         firstFigurePosition: pos
                     }
                 })
-                return
+                return false
             }
 
             if (phase === MysteryBoxPhases.WAITING_SECOND_FIGURE && firstFigurePosition) {
                 const cell = board[pos.row][pos.col]
                 if (!cell || !isPiece(cell) || cell.color !== currentPlayer) {
-                    toast.warning('❌ Invalid Selection - Select a DIFFERENT piece of yours to complete the swap.', { autoClose: 3000 })
-                    return
+                    if (!isOnline) {
+                        toast.warning('❌ Invalid Selection - Select a DIFFERENT piece of yours to complete the swap.', { autoClose: 3000 })
+                    }
+                    return false
                 }
                 if (pos.row === firstFigurePosition.row && pos.col === firstFigurePosition.col) {
-                    toast.warning('❌ Cannot swap a piece with itself! Select a DIFFERENT piece.', { autoClose: 3000 })
-                    return
+                    if (!isOnline) {
+                        toast.warning('❌ Cannot swap a piece with itself! Select a DIFFERENT piece.', { autoClose: 3000 })
+                    }
+                    return false
                 }
 
                 const { success, newBoard } = executeFigureSwap(board, firstFigurePosition, pos)
                 if (!success) {
-                    toast.error('❌ Swap failed! Please try again.', { autoClose: 2000 })
-                    return
+                    if (!isOnline) {
+                        toast.error('❌ Swap failed! Please try again.', { autoClose: 2000 })
+                    }
+                    return false
                 }
 
-                toast.success('🎉 Pieces swapped successfully! Your turn is complete.', { autoClose: 3000 })
+                if (!isOnline) {
+                    toast.success('🎉 Pieces swapped successfully! Your turn is complete.', { autoClose: 3000 })
+                }
 
                 const nextPlayer = currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
                 const { gameOver, winner } = checkGameOver(newBoard, nextPlayer, boardSize)
@@ -570,7 +852,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     },
                     mysteryBoxState: getInitialMysteryBoxState()
                 })
-                return
+                return true
             }
         }
 
@@ -578,19 +860,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (phase === MysteryBoxPhases.WAITING_HOPLITE_SACRIFICE) {
                 const cell = board[pos.row][pos.col]
                 if (!cell || !isPiece(cell) || cell.type !== PieceTypes.HOPLITE || cell.color !== currentPlayer) {
-                    toast.warning('❌ Invalid Selection - You must select one of YOUR HOPLITES (⚔️) to sacrifice!', { autoClose: 3500 })
-                    return
+                    if (!isOnline) {
+                        toast.warning('❌ Invalid Selection - You must select one of YOUR HOPLITES (⚔️) to sacrifice!', { autoClose: 3500 })
+                    }
+                    return false
                 }
 
                 const { success, newBoard } = executeHopliteSacrifice(board, pos)
                 if (!success) {
-                    toast.error('❌ Sacrifice failed! Please try again.', { autoClose: 2000 })
-                    return
+                    if (!isOnline) {
+                        toast.error('❌ Sacrifice failed! Please try again.', { autoClose: 2000 })
+                    }
+                    return false
                 }
 
                 const revivablePieces = getRevivablePieces(currentPlayer, capturedPieces)
 
-                toast.success('⚔️ Hoplite sacrificed! A modal will appear - select an opponent piece you\'ve captured to revive as YOUR own!', { autoClose: 5000 })
+                if (!isOnline) {
+                    toast.success('⚔️ Hoplite sacrificed! A modal will appear - select an opponent piece you\'ve captured to revive as YOUR own!', { autoClose: 5000 })
+                } else {
+                    toast.info('⚔️ Hoplite sacrificed! Now select a captured piece to revive from the modal.', { autoClose: 4000 })
+                }
 
                 set({
                     gameState: {
@@ -604,19 +894,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         revivablePieces
                     }
                 })
-                return
+                return false
             }
 
             if (phase === MysteryBoxPhases.WAITING_REVIVE_PLACEMENT && selectedRevivePiece && firstFigurePosition) {
                 if (board[pos.row][pos.col] !== null) {
-                    toast.warning('❌ Invalid Placement - You must select an EMPTY tile to place the revived piece!', { autoClose: 3000 })
-                    return
+                    if (!isOnline) {
+                        toast.warning('❌ Invalid Placement - You must select an EMPTY tile to place the revived piece!', { autoClose: 3000 })
+                    }
+                    return false
                 }
 
                 const { success, newBoard } = executeRevivePiece(board, selectedRevivePiece, pos)
                 if (!success) {
-                    toast.error('❌ Revival failed! Please try again.', { autoClose: 2000 })
-                    return
+                    if (!isOnline) {
+                        toast.error('❌ Revival failed! Please try again.', { autoClose: 2000 })
+                    }
+                    return false
                 }
 
                 const newCaptured = { ...capturedPieces }
@@ -626,7 +920,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     p => !(p.id === selectedRevivePiece.id && p.type === selectedRevivePiece.type && p.color === selectedRevivePiece.color)
                 )
 
-                toast.success('🎉 Enemy piece revived as yours! Your turn is complete.', { autoClose: 3000 })
+                if (!isOnline) {
+                    toast.success('🎉 Enemy piece revived as yours! Your turn is complete.', { autoClose: 3000 })
+                }
 
                 const nextPlayer = currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
                 const { gameOver, winner } = checkGameOver(newBoard, nextPlayer, boardSize)
@@ -642,37 +938,47 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     },
                     mysteryBoxState: getInitialMysteryBoxState()
                 })
-                return
+                return true
             }
         }
 
         if (option === MysteryBoxOptions.OBSTACLE_SWAP && diceRoll) {
             if (phase === MysteryBoxPhases.WAITING_OBSTACLE_SELECTION) {
                 if (!isSelectableObstacle(board, pos)) {
-                    toast.warning('❌ Invalid Selection - You can select any OBSTACLE except Mystery Boxes (❓)!', { autoClose: 3500 })
-                    return
+                    if (!isOnline) {
+                        toast.warning('❌ Invalid Selection - You can select any OBSTACLE except Mystery Boxes (❓)!', { autoClose: 3500 })
+                    }
+                    return false
                 }
                 if (isPositionInList(pos, selectedObstacles)) {
                     const newSelectedObstacles = selectedObstacles.filter(p => p.row !== pos.row || p.col !== pos.col)
-                    toast.info(`🔄 Obstacle deselected. ${newSelectedObstacles.length}/${diceRoll} obstacles selected.`, { autoClose: 2500 })
+                    if (!isOnline) {
+                        toast.info(`🔄 Obstacle deselected. ${newSelectedObstacles.length}/${diceRoll} obstacles selected.`, { autoClose: 2500 })
+                    }
                     set({
                         mysteryBoxState: {
                             ...mysteryBoxState,
                             selectedObstacles: newSelectedObstacles
                         }
                     })
-                    return
+                    return false
                 }
 
                 if (selectedObstacles.length >= diceRoll) {
-                    toast.warning(`❌ Maximum ${diceRoll} obstacles already selected! Deselect one first or proceed to empty tile selection.`, { autoClose: 3500 })
-                    return
+                    if (!isOnline) {
+                        toast.warning(`❌ Maximum ${diceRoll} obstacles already selected! Deselect one first or proceed to empty tile selection.`, { autoClose: 3500 })
+                    }
+                    return false
                 }
 
                 const newSelectedObstacles = [...selectedObstacles, pos]
 
                 if (newSelectedObstacles.length === diceRoll) {
-                    toast.success(`✅ Selected ${diceRoll}/${diceRoll} obstacles! Now click on ${diceRoll} EMPTY tiles where you want to move these obstacles.`, { autoClose: 5000 })
+                    if (!isOnline) {
+                        toast.success(`✅ Selected ${diceRoll}/${diceRoll} obstacles! Now click on ${diceRoll} EMPTY tiles where you want to move these obstacles.`, { autoClose: 5000 })
+                    } else {
+                        toast.info(`🎯 Now select ${diceRoll} empty tile(s) to swap the obstacles to!`, { autoClose: 4000 })
+                    }
                     set({
                         mysteryBoxState: {
                             ...mysteryBoxState,
@@ -681,7 +987,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         }
                     })
                 } else {
-                    toast.info(`📍 Obstacle selected! ${newSelectedObstacles.length}/${diceRoll} selected. Select ${diceRoll - newSelectedObstacles.length} more obstacle(s).`, { autoClose: 3000 })
+                    if (!isOnline) {
+                        toast.info(`📍 Obstacle selected! ${newSelectedObstacles.length}/${diceRoll} selected. Select ${diceRoll - newSelectedObstacles.length} more obstacle(s).`, { autoClose: 3000 })
+                    }
                     set({
                         mysteryBoxState: {
                             ...mysteryBoxState,
@@ -689,29 +997,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         }
                     })
                 }
-                return
+                return false
             }
 
             if (phase === MysteryBoxPhases.WAITING_EMPTY_TILE_SELECTION) {
                 if (board[pos.row][pos.col] !== null) {
-                    toast.warning('❌ Invalid Selection - You must select EMPTY tiles (no pieces or obstacles)!', { autoClose: 3000 })
-                    return
+                    if (!isOnline) {
+                        toast.warning('❌ Invalid Selection - You must select EMPTY tiles (no pieces or obstacles)!', { autoClose: 3000 })
+                    }
+                    return false
                 }
                 if (isPositionInList(pos, selectedEmptyTiles)) {
                     const newSelectedEmptyTiles = selectedEmptyTiles.filter(p => p.row !== pos.row || p.col !== pos.col)
-                    toast.info(`🔄 Empty tile deselected. ${newSelectedEmptyTiles.length}/${selectedObstacles.length} selected.`, { autoClose: 2500 })
+                    if (!isOnline) {
+                        toast.info(`🔄 Empty tile deselected. ${newSelectedEmptyTiles.length}/${selectedObstacles.length} selected.`, { autoClose: 2500 })
+                    }
                     set({
                         mysteryBoxState: {
                             ...mysteryBoxState,
                             selectedEmptyTiles: newSelectedEmptyTiles
                         }
                     })
-                    return
+                    return false
                 }
 
                 if (selectedEmptyTiles.length >= selectedObstacles.length) {
-                    toast.warning(`❌ Maximum ${selectedObstacles.length} empty tiles already selected! Deselect one first.`, { autoClose: 3000 })
-                    return
+                    if (!isOnline) {
+                        toast.warning(`❌ Maximum ${selectedObstacles.length} empty tiles already selected! Deselect one first.`, { autoClose: 3000 })
+                    }
+                    return false
                 }
 
                 const newSelectedEmptyTiles = [...selectedEmptyTiles, pos]
@@ -719,11 +1033,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 if (newSelectedEmptyTiles.length === selectedObstacles.length) {
                     const { success, newBoard } = executeObstacleSwap(board, selectedObstacles, newSelectedEmptyTiles)
                     if (!success) {
-                        toast.error('❌ Obstacle swap failed! Please try again.', { autoClose: 2000 })
-                        return
+                        if (!isOnline) {
+                            toast.error('❌ Obstacle swap failed! Please try again.', { autoClose: 2000 })
+                        }
+                        return false
                     }
 
-                    toast.success('🎉 Obstacles swapped with empty tiles! Your turn is complete.', { autoClose: 3000 })
+                    if (!isOnline) {
+                        toast.success('🎉 Obstacles swapped with empty tiles! Your turn is complete.', { autoClose: 3000 })
+                    }
 
                     const nextPlayer = currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
                     const { gameOver, winner } = checkGameOver(newBoard, nextPlayer, boardSize)
@@ -738,9 +1056,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         },
                         mysteryBoxState: getInitialMysteryBoxState()
                     })
-                    return
+                    return true
                 } else {
-                    toast.info(`📍 Empty tile selected! ${newSelectedEmptyTiles.length}/${selectedObstacles.length} selected. Select ${selectedObstacles.length - newSelectedEmptyTiles.length} more.`, { autoClose: 3000 })
+                    if (!isOnline) {
+                        toast.info(`📍 Empty tile selected! ${newSelectedEmptyTiles.length}/${selectedObstacles.length} selected. Select ${selectedObstacles.length - newSelectedEmptyTiles.length} more.`, { autoClose: 3000 })
+                    }
                     set({
                         mysteryBoxState: {
                             ...mysteryBoxState,
@@ -748,17 +1068,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         }
                     })
                 }
-                return
+                return false
             }
         }
+
+        return false
     },
 
-    selectRevivePiece: (piece: Piece) => {
+    selectRevivePiece: (piece: Piece, isOnline = false) => {
         const { mysteryBoxState } = get()
         if (!mysteryBoxState.isActive) return
         if (mysteryBoxState.phase !== MysteryBoxPhases.WAITING_REVIVE_FIGURE) return
 
-        toast.info(`✅ Piece selected! Now click on an EMPTY tile on the board to place your revived ${piece.type}.`, { autoClose: 4000 })
+        if (!isOnline) {
+            toast.info(`✅ Piece selected! Now click on an EMPTY tile on the board to place your revived ${piece.type}.`, { autoClose: 4000 })
+        } else {
+            toast.info('📍 Now click on an empty tile to place the revived piece!', { autoClose: 4000 })
+        }
 
         set({
             mysteryBoxState: {
@@ -788,13 +1114,121 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({
             mysteryBoxState: getInitialMysteryBoxState()
         })
+    },
+
+    resetMysteryBoxState: () => {
+        set({
+            mysteryBoxState: getInitialMysteryBoxState()
+        })
+    },
+
+    setGameSession: (session: GameSession) => {
+        set({ gameSession: session, error: null })
+    },
+
+    setCurrentPlayerId: (playerId: string) => {
+        set({ currentPlayerId: playerId })
+    },
+
+    initializeBoard: () => {
+        const { gameSession } = get()
+        if (!gameSession || !gameSession.gameState) return
+
+        set({
+            gameState: {
+                board: gameSession.gameState.board,
+                boardSize: gameSession.boardSize,
+                currentPlayer: gameSession.gameState.currentPlayer,
+                selectedPosition: null,
+                validMoves: [],
+                validAttacks: [],
+                validSwaps: [],
+                moveHistory: gameSession.gameState.moveHistory || [],
+                capturedPieces: gameSession.gameState.capturedPieces || { white: [], black: [] },
+                lastMove: gameSession.gameState.lastMove || null,
+                gameOver: gameSession.gameState.gameOver || false,
+                winner: gameSession.gameState.winner || null,
+                narcs: gameSession.gameState.narcs || []
+            }
+        })
+    },
+
+    syncFromServer: (session: GameSession) => {
+        if (!session.gameState) return
+
+        set({
+            gameSession: session,
+            gameState: {
+                board: session.gameState.board,
+                boardSize: session.boardSize,
+                currentPlayer: session.gameState.currentPlayer,
+                selectedPosition: null,
+                validMoves: [],
+                validAttacks: [],
+                validSwaps: [],
+                moveHistory: session.gameState.moveHistory || [],
+                capturedPieces: session.gameState.capturedPieces || { white: [], black: [] },
+                lastMove: session.gameState.lastMove || null,
+                gameOver: session.gameState.gameOver || false,
+                winner: session.gameState.winner || null,
+                narcs: session.gameState.narcs || []
+            },
+            selectedPosition: null,
+            validMoves: [],
+            validAttacks: [],
+            validSwaps: []
+        })
+    },
+
+    setLoading: (loading: boolean) => {
+        set({ isLoading: loading })
+    },
+
+    setError: (error: string | null) => {
+        set({ error })
+    },
+
+    reset: () => {
+        set({
+            gameSession: null,
+            currentPlayerId: null,
+            isLoading: false,
+            error: null,
+            selectedPosition: null,
+            validMoves: [],
+            validAttacks: [],
+            validSwaps: [],
+            mysteryBoxState: getInitialMysteryBoxState()
+        })
+    },
+
+    getCurrentPlayer: () => {
+        const { gameSession, currentPlayerId } = get()
+        if (!gameSession || !currentPlayerId) return undefined
+        return gameSession.players.find(p => p.id === currentPlayerId)
+    },
+
+    getCurrentTurnPlayer: () => {
+        const { gameSession, gameState } = get()
+        if (!gameSession || !gameState) return undefined
+        return gameSession.players.find(p => p.color === gameState.currentPlayer)
+    },
+
+    isMyTurn: () => {
+        const { gameSession, gameState, currentPlayerId } = get()
+        if (!gameSession || !gameState || !currentPlayerId) return false
+        const myPlayer = gameSession.players.find(p => p.id === currentPlayerId)
+        if (!myPlayer) return false
+        return myPlayer.color === gameState.currentPlayer
+    },
+
+    getGameStateForSync: () => {
+        const { gameState } = get()
+        return gameState
     }
 }))
 
-// Bot effect hook - needs to be called from a component
 export const useBotEffect = () => {
     const { botEnabled, botDifficulty, gameState, processBotMove } = useGameStore()
-
-    // This will be handled by useEffect in a component
     return { botEnabled, botDifficulty, gameState, processBotMove }
 }

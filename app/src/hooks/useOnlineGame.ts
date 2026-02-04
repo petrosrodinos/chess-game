@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useSocket } from './useSocket'
-import { useOnlineGameStore } from '../store/onlineGameStore'
+import { useGameStore } from '../store/gameStore'
 import { useAuthStore } from '../store/authStore'
 import { SocketEvents } from '../constants'
 import { getSocket } from '../lib/socket'
@@ -58,7 +58,7 @@ export const useOnlineGame = () => {
         handleMysteryBoxSelection,
         selectRevivePiece,
         cancelMysteryBox,
-    } = useOnlineGameStore()
+    } = useGameStore()
 
     useEffect(() => {
         if (connectionError && isLoading) {
@@ -140,7 +140,7 @@ export const useOnlineGame = () => {
 
         const handleMysteryBoxTriggeredByOpponent = (data: MysteryBoxTriggeredPayload) => {
             if (data.gameState) {
-                const currentSession = useOnlineGameStore.getState().gameSession
+                const currentSession = useGameStore.getState().gameSession
                 if (currentSession) {
                     const updatedSession = { ...currentSession, gameState: data.gameState } as GameSession
                     syncFromServer(updatedSession)
@@ -162,7 +162,7 @@ export const useOnlineGame = () => {
 
         const handleMysteryBoxCompleteByOpponent = (data: MysteryBoxCompletePayload) => {
             if (data.gameState) {
-                const currentSession = useOnlineGameStore.getState().gameSession
+                const currentSession = useGameStore.getState().gameSession
                 if (currentSession) {
                     const updatedSession = { ...currentSession, gameState: data.gameState } as GameSession
                     syncFromServer(updatedSession)
@@ -228,10 +228,10 @@ export const useOnlineGame = () => {
     const handleSquareClick = useCallback((pos: Position) => {
         if (!gameCode) return
 
-        const currentMysteryBoxState = useOnlineGameStore.getState().mysteryBoxState
+        const currentMysteryBoxState = useGameStore.getState().mysteryBoxState
 
         if (currentMysteryBoxState.isActive) {
-            const actionCompleted = handleMysteryBoxSelection(pos)
+            const actionCompleted = handleMysteryBoxSelection(pos, true)
 
             if (actionCompleted) {
                 const currentGameState = getGameStateForSync()
@@ -256,7 +256,7 @@ export const useOnlineGame = () => {
             return
         }
 
-        const result = selectSquare(pos)
+        const result = selectSquare(pos, true)
 
         if (typeof result === 'object' && result.triggered) {
             const myPlayer = getCurrentPlayer()
@@ -316,6 +316,10 @@ export const useOnlineGame = () => {
         })
     }, [gameCode, selectSquare, getGameStateForSync, emit, handleMysteryBoxSelection, getCurrentPlayer])
 
+    const handleSelectRevivePiece = useCallback((piece: Parameters<typeof selectRevivePiece>[0]) => {
+        selectRevivePiece(piece, true)
+    }, [selectRevivePiece])
+
     const board = gameState?.board ?? []
     const boardSize = gameState?.boardSize ?? gameSession?.boardSize ?? { rows: 12, cols: 12 }
     const lastMove = gameState?.lastMove ?? null
@@ -345,7 +349,7 @@ export const useOnlineGame = () => {
         isLoading: gameCode ? isLoading : false,
         error,
         handleSquareClick,
-        selectRevivePiece,
+        selectRevivePiece: handleSelectRevivePiece,
         cancelMysteryBox
     }
 }

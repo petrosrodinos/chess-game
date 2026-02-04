@@ -20,7 +20,17 @@ export const Game = () => {
     const { mode } = useGameMode()
     const isOnline = mode === GameModes.ONLINE
 
-    const { gameState, botEnabled, botDifficulty, botThinking, processBotMove, mysteryBoxState: offlineMysteryBoxState, selectRevivePiece: offlineSelectRevivePiece, cancelMysteryBox: offlineCancelMysteryBox } = useGameStore()
+    const {
+        gameState,
+        botEnabled,
+        botDifficulty,
+        botThinking,
+        processBotMove,
+        mysteryBoxState: offlineMysteryBoxState,
+        selectRevivePiece: offlineSelectRevivePiece,
+        cancelMysteryBox: offlineCancelMysteryBox,
+        selectSquare: offlineSelectSquare
+    } = useGameStore()
     const { is3D, isTopMenuOpen, isRightMenuOpen, openTopMenu, closeTopMenu, openRightMenu, closeRightMenu } = useUIStore()
     const [isResultModalOpen, setIsResultModalOpen] = useState(false)
 
@@ -139,6 +149,10 @@ export const Game = () => {
         return 'bg-emerald-600 text-white'
     }
 
+    const onSquareClick = isOnline ? handleSquareClick : (pos: { row: number; col: number }) => {
+        offlineSelectSquare(pos, false)
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-stone-900 via-stone-800 to-emerald-950 p-4">
             <div className="max-w-7xl mx-auto">
@@ -178,7 +192,7 @@ export const Game = () => {
                                 onlineValidSwaps={onlineValidSwaps}
                                 onlineLastMove={onlineLastMove}
                                 onlineMysteryBoxState={onlineMysteryBoxState}
-                                onSquareClick={handleSquareClick}
+                                onSquareClick={onSquareClick}
                             />
                         ) : (
                             <Board
@@ -191,7 +205,7 @@ export const Game = () => {
                                 onlineValidSwaps={onlineValidSwaps}
                                 onlineLastMove={onlineLastMove}
                                 onlineMysteryBoxState={onlineMysteryBoxState}
-                                onSquareClick={handleSquareClick}
+                                onSquareClick={onSquareClick}
                             />
                         )}
 

@@ -34,7 +34,7 @@ export const Board = ({
     onlineMysteryBoxState,
     onSquareClick
 }: BoardProps) => {
-    const { gameState, hintMove, selectSquare, devModeSelectSquare, devModeSelected, mysteryBoxState: offlineMysteryBoxState, handleMysteryBoxSelection: offlineHandleMysteryBoxSelection } = useGameStore()
+    const { gameState, hintMove, devModeSelectSquare, devModeSelected, mysteryBoxState: offlineMysteryBoxState, handleMysteryBoxSelection } = useGameStore()
     const { helpEnabled, devMode } = useUIStore()
     
     const mysteryBoxState = isOnline && onlineMysteryBoxState ? onlineMysteryBoxState : offlineMysteryBoxState
@@ -129,29 +129,29 @@ export const Board = ({
     }
 
     const handleSquareClick = (row: number, col: number) => {
-        if (isOnline && onSquareClick) {
+        if (onSquareClick) {
+            if (!isOnline && offlineMysteryBoxState.isActive) {
+                handleMysteryBoxSelection({ row, col }, false)
+                return
+            }
+            
+            if (!isOnline && devMode) {
+                devModeSelectSquare({ row, col })
+                return
+            }
+            
+            if (!isOnline && helpEnabled) {
+                const cell = board[row][col]
+                if (cell && isPiece(cell)) {
+                    setHelpPosition({ row, col })
+                } else {
+                    setHelpPosition(null)
+                }
+            }
+            
             onSquareClick({ row, col })
             return
         }
-
-        if (!isOnline && offlineMysteryBoxState.isActive) {
-            offlineHandleMysteryBoxSelection({ row, col })
-            return
-        }
-
-        if (devMode) {
-            devModeSelectSquare({ row, col })
-            return
-        }
-        if (helpEnabled) {
-            const cell = board[row][col]
-            if (cell && isPiece(cell)) {
-                setHelpPosition({ row, col })
-            } else {
-                setHelpPosition(null)
-            }
-        }
-        selectSquare({ row, col })
     }
 
     if (!board || board.length === 0) {
