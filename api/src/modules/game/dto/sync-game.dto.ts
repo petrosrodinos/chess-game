@@ -1,4 +1,4 @@
-import { IsString, IsObject } from 'class-validator'
+import { IsString, IsObject, IsOptional } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 export class SyncGameDto {
@@ -9,4 +9,9 @@ export class SyncGameDto {
     @ApiProperty({ description: 'Full game state from client' })
     @IsObject()
     gameState: Record<string, unknown>
+
+    @ApiProperty({ description: 'Sound key to play on opponent client', required: false })
+    @IsOptional()
+    @IsString()
+    soundKey?: string
 }

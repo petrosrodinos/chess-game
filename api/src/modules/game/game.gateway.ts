@@ -148,7 +148,10 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
 
             this.logger.log(`Game synced: ${payload.code}`)
 
-            client.to(gameSession.code).emit(SocketEvents.GAME_UPDATE, gameSession)
+            const updatePayload = payload.soundKey
+                ? { ...gameSession, soundKey: payload.soundKey }
+                : gameSession
+            client.to(gameSession.code).emit(SocketEvents.GAME_UPDATE, updatePayload)
         } catch (error) {
             this.logger.error(`Error syncing game: ${error.message}`)
             client.emit(SocketEvents.ERROR, { message: error.message })
@@ -210,10 +213,10 @@ export class GameGateway implements OnGatewayDisconnect, OnGatewayConnection {
 
             this.logger.log(`[MYSTERY_BOX_COMPLETE] Mystery box completed in game ${payload.code}`)
 
-            client.to(gameSession.code).emit(SocketEvents.MYSTERY_BOX_COMPLETE, {
-                code: gameSession.code,
-                gameState: gameSession.gameState
-            })
+            const completePayload = payload.soundKey
+                ? { code: gameSession.code, gameState: gameSession.gameState, soundKey: payload.soundKey }
+                : { code: gameSession.code, gameState: gameSession.gameState }
+            client.to(gameSession.code).emit(SocketEvents.MYSTERY_BOX_COMPLETE, completePayload)
         } catch (error) {
             this.logger.error(`Error completing mystery box: ${error.message}`)
             client.emit(SocketEvents.ERROR, { message: error.message })
