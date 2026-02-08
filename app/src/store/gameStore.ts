@@ -355,6 +355,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 }
 
                 if (cell && isPiece(cell) && cell.color === myPlayer.color) {
+                    if (pos.row === selectedPosition.row && pos.col === selectedPosition.col) {
+                        set({
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: []
+                        })
+                        return false
+                    }
                     const moves = getValidMoves(board, pos, boardSize)
                     const attacks = getValidAttacks(board, pos, boardSize)
                     const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
@@ -572,6 +581,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }
 
             if (cell && isPiece(cell) && cell.color === gameState.currentPlayer) {
+                if (gameState.selectedPosition && pos.row === gameState.selectedPosition.row && pos.col === gameState.selectedPosition.col) {
+                    set({
+                        gameState: {
+                            ...gameState,
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: []
+                        }
+                    })
+                    return false
+                }
                 const moves = getValidMoves(gameState.board, pos, gameState.boardSize)
                 const attacks = getValidAttacks(gameState.board, pos, gameState.boardSize)
                 const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
