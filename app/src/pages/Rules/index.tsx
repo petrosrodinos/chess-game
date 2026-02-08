@@ -1,4 +1,7 @@
-import { Navbar } from '../../components/Navbar'
+import { Navbar } from "../../components/Navbar";
+import { FigureSymbol } from "../../components/FigureSymbol";
+import { PieceCarousel } from "./PieceCarousel";
+import { RULES_FIGURE_ORDER, RULES_FIGURE_SECTION_TITLES, FIGURE_RULES_BULLETS } from "../Game/constants";
 
 export const RulesPage = () => {
   return (
@@ -7,22 +10,20 @@ export const RulesPage = () => {
 
       <Navbar showBackButton />
 
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-4">
+        <PieceCarousel />
+      </div>
+
       <main className="relative z-10 max-w-4xl mx-auto px-6 py-10 pb-20">
-        <h1 className="text-3xl md:text-4xl font-bold text-amber-100/95 mb-2">
-          Game rules
-        </h1>
-        <p className="text-stone-400 mb-12">
-          Setting obstacles and figures
-        </p>
+        <h1 className="text-3xl md:text-4xl font-bold text-amber-100/95 mb-2">Game rules</h1>
+        <p className="text-stone-400 mb-12">Setting obstacles and figures</p>
 
         <section className="mb-14">
           <h2 className="text-xl font-bold text-stone-100 mb-4 flex items-baseline gap-2">
             <span className="flex w-8 h-8 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400 text-sm font-semibold">1</span>
             Game board and obstacles
           </h2>
-          <p className="text-stone-400 mb-4">
-            The game board comes in three sizes:
-          </p>
+          <p className="text-stone-400 mb-4">The game board comes in three sizes:</p>
           <div className="overflow-x-auto rounded-xl border border-stone-700/60 bg-stone-900/50">
             <table className="w-full min-w-[520px] border-collapse">
               <thead>
@@ -58,15 +59,21 @@ export const RulesPage = () => {
           <ul className="mt-6 space-y-2 text-stone-400 text-sm">
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
-              <span><strong className="text-stone-300">Cave:</strong> Figures entering a cave can exit from any other cave on the board.</span>
+              <span>
+                <strong className="text-stone-300">Cave:</strong> Figures entering a cave can exit from any other cave on the board.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
-              <span><strong className="text-stone-300">Tree, Rock, River, Lake, Canyon:</strong> Movement restrictions vary per figure (see Section 4).</span>
+              <span>
+                <strong className="text-stone-300">Tree, Rock, River, Lake, Canyon:</strong> Movement restrictions vary per figure (see Section 4).
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
-              <span><strong className="text-stone-300">MysteryBox:</strong> Special interactive square (effect depends on game variant or player rules).</span>
+              <span>
+                <strong className="text-stone-300">MysteryBox:</strong> Special interactive square (effect depends on game variant or player rules).
+              </span>
             </li>
           </ul>
         </section>
@@ -76,9 +83,7 @@ export const RulesPage = () => {
             <span className="flex w-8 h-8 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400 text-sm font-semibold">2</span>
             Figures and starting positions
           </h2>
-          <p className="text-stone-400 mb-4">
-            Figures are arranged in three lines for each player:
-          </p>
+          <p className="text-stone-400 mb-4">Figures are arranged in three lines for each player:</p>
           <div className="overflow-x-auto rounded-xl border border-stone-700/60 bg-stone-900/50">
             <table className="w-full min-w-[560px] border-collapse">
               <thead>
@@ -199,100 +204,23 @@ export const RulesPage = () => {
           </h2>
 
           <div className="space-y-10">
-            <div className="pl-0">
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.1 Hoplite</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves 3 steps forward on the first move; afterwards, moves 2 steps.</li>
-                <li>Can shoot 1 step sideways (either direction).</li>
-                <li>Can pass through caves.</li>
-                <li>Cannot pass through river, lake, or canyon.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.2 Ram-Tower</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves in a cross-like pattern (orthogonal) any number of steps.</li>
-                <li>Can shoot up to 5 steps in a cross pattern.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.3 Chariot</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves in corner patterns: 2-1, 1-2, 2-2, 3-1, 1-3 steps.</li>
-                <li>Can pass over other figures on its path.</li>
-                <li>Units killed by Chariot cannot be revived until Chariot is destroyed.</li>
-                <li>Shooting range: 4 steps in a corner pattern only.</li>
-                <li>Can pass through rivers (up to 2 steps wide).</li>
-                <li>Cannot pass through lake, canyon, cave.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.4 Bomber</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves 1 or 2 steps in cross or X patterns.</li>
-                <li>Cannot attack or shoot directly.</li>
-                <li>When placed, triggers a net of explosives within 2 steps. Same-type figures ignited if a figure enters the range.</li>
-                <li>Can pass through river (1 step wide), cave, canyon.</li>
-                <li>Cannot pass through lake.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.5 Paladin</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves sideways any number of steps.</li>
-                <li>Shoots up to 3 steps sideways.</li>
-                <li>Can pass through river (1 step wide), cave, canyon.</li>
-                <li>Cannot pass through lake.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.6 Warlock (Vezier)</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves in 2-step corner patterns.</li>
-                <li>Can pass over figures in its path.</li>
-                <li>Can swap positions with any Hoplite and the Monarch.</li>
-                <li>Can pass through lake and cave.</li>
-                <li>Cannot pass through river or canyon.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.7 Monarch</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves in any direction, 1 step at a time.</li>
-                <li>Shoots 1 step in any direction.</li>
-                <li>Can pass through cave.</li>
-                <li>Cannot pass through river, lake, canyon.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.8 Duchess</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves in any direction.</li>
-                <li>Shoots up to 9 steps in any direction.</li>
-                <li>Can pass through river.</li>
-                <li>Cannot pass through lake, canyon, cave.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-amber-200/90 mb-3">4.9 Necromancer (Druid)</h3>
-              <ul className="space-y-1.5 text-stone-400 text-sm">
-                <li>Moves in any direction.</li>
-                <li>Shoots 1 step in any direction.</li>
-                <li>Can revive Ram, Chariot, Bomber, Paladin if Monarch, Duchess, and Warlock are in original positions.</li>
-                <li>Can shoot freeze stuns within 8 steps (range decreases by 2 for each revival).</li>
-                <li>Revived figures cannot use long-range attacks. Bomber attacks normally as Zompie.</li>
-                <li>Can pass through lake and cave.</li>
-                <li>Cannot pass through river or canyon.</li>
-              </ul>
-            </div>
+            {RULES_FIGURE_ORDER.map((pieceType, index) => (
+              <div key={pieceType} className="flex gap-4 sm:gap-6">
+                <div className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-stone-800/80 border border-stone-700/50 flex items-center justify-center">
+                  <FigureSymbol pieceType={pieceType} size="md" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-semibold text-amber-200/90 mb-3">
+                    {4}.{index + 1} {RULES_FIGURE_SECTION_TITLES[pieceType]}
+                  </h3>
+                  <ul className="space-y-1.5 text-stone-400 text-sm">
+                    {FIGURE_RULES_BULLETS[pieceType].map((bullet, i) => (
+                      <li key={i}>{bullet}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -304,27 +232,37 @@ export const RulesPage = () => {
           <ul className="space-y-2 text-stone-400 text-sm">
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
-              <span><strong className="text-stone-300">Caves:</strong> Entering one cave allows exit from any other cave on the board.</span>
+              <span>
+                <strong className="text-stone-300">Caves:</strong> Entering one cave allows exit from any other cave on the board.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
-              <span><strong className="text-stone-300">Rivers, Lakes, Canyons:</strong> Each figure has specific movement restrictions (see Section 4).</span>
+              <span>
+                <strong className="text-stone-300">Rivers, Lakes, Canyons:</strong> Each figure has specific movement restrictions (see Section 4).
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
-              <span><strong className="text-stone-300">Explosions:</strong> Bomber triggers affect same-type figures in a 2-step range.</span>
+              <span>
+                <strong className="text-stone-300">Explosions:</strong> Bomber triggers affect same-type figures in a 2-step range.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
-              <span><strong className="text-stone-300">Revival:</strong> Necromancer revives select units; revived units may have limited abilities.</span>
+              <span>
+                <strong className="text-stone-300">Revival:</strong> Necromancer revives select units; revived units may have limited abilities.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
-              <span><strong className="text-stone-300">Zompie Mode:</strong> Certain figures have a weakened point value after revival.</span>
+              <span>
+                <strong className="text-stone-300">Zompie Mode:</strong> Certain figures have a weakened point value after revival.
+              </span>
             </li>
           </ul>
         </section>
       </main>
     </div>
-  )
-}
+  );
+};

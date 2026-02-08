@@ -1,4 +1,4 @@
-import type { GameState, BoardSize, PieceRules, ObstacleType } from '../types'
+import type { GameState, BoardSize, PieceRules, ObstacleType, PieceType } from '../types'
 import { PlayerColors, PieceTypes, ObstacleTypes, BotDifficulties, BoardSizeKeys, MovePatterns } from '../types'
 
 export const generateFiles = (cols: number): string[] => {
@@ -125,6 +125,92 @@ export const PIECE_NAMES = {
   [PieceTypes.MONARCH]: 'Monarch',
   [PieceTypes.DUCHESS]: 'Duchess',
   [PieceTypes.NECROMANCER]: 'Necromancer'
+} as const
+
+export const RULES_FIGURE_ORDER: readonly PieceType[] = [
+  PieceTypes.HOPLITE,
+  PieceTypes.RAM_TOWER,
+  PieceTypes.CHARIOT,
+  PieceTypes.BOMBER,
+  PieceTypes.PALADIN,
+  PieceTypes.WARLOCK,
+  PieceTypes.MONARCH,
+  PieceTypes.DUCHESS,
+  PieceTypes.NECROMANCER
+] as const
+
+export const RULES_FIGURE_SECTION_TITLES: Record<PieceType, string> = {
+  [PieceTypes.HOPLITE]: 'Hoplite',
+  [PieceTypes.RAM_TOWER]: 'Ram-Tower',
+  [PieceTypes.CHARIOT]: 'Chariot',
+  [PieceTypes.BOMBER]: 'Bomber',
+  [PieceTypes.PALADIN]: 'Paladin',
+  [PieceTypes.WARLOCK]: 'Warlock (Vezier)',
+  [PieceTypes.MONARCH]: 'Monarch',
+  [PieceTypes.DUCHESS]: 'Duchess',
+  [PieceTypes.NECROMANCER]: 'Necromancer (Druid)'
+} as const
+
+export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
+  [PieceTypes.HOPLITE]: [
+    'Moves 3 steps forward on the first move; afterwards, moves 2 steps.',
+    'Can shoot 1 step sideways (either direction).',
+    'Can pass through caves.',
+    'Cannot pass through river, lake, or canyon.'
+  ],
+  [PieceTypes.RAM_TOWER]: [
+    'Moves in a cross-like pattern (orthogonal) any number of steps.',
+    'Can shoot up to 5 steps in a cross pattern.'
+  ],
+  [PieceTypes.CHARIOT]: [
+    'Moves in corner patterns: 2-1, 1-2, 2-2, 3-1, 1-3 steps.',
+    'Can pass over other figures on its path.',
+    'Units killed by Chariot cannot be revived until Chariot is destroyed.',
+    'Shooting range: 4 steps in a corner pattern only.',
+    'Can pass through rivers (up to 2 steps wide).',
+    'Cannot pass through lake, canyon, cave.'
+  ],
+  [PieceTypes.BOMBER]: [
+    'Moves 1 or 2 steps in cross or X patterns.',
+    'Cannot attack or shoot directly.',
+    'When placed, triggers a net of explosives within 2 steps. Same-type figures ignited if a figure enters the range.',
+    'Can pass through river (1 step wide), cave, canyon.',
+    'Cannot pass through lake.'
+  ],
+  [PieceTypes.PALADIN]: [
+    'Moves sideways any number of steps.',
+    'Shoots up to 3 steps sideways.',
+    'Can pass through river (1 step wide), cave, canyon.',
+    'Cannot pass through lake.'
+  ],
+  [PieceTypes.WARLOCK]: [
+    'Moves in 2-step corner patterns.',
+    'Can pass over figures in its path.',
+    'Can swap positions with any Hoplite and the Monarch.',
+    'Can pass through lake and cave.',
+    'Cannot pass through river or canyon.'
+  ],
+  [PieceTypes.MONARCH]: [
+    'Moves in any direction, 1 step at a time.',
+    'Shoots 1 step in any direction.',
+    'Can pass through cave.',
+    'Cannot pass through river, lake, canyon.'
+  ],
+  [PieceTypes.DUCHESS]: [
+    'Moves in any direction.',
+    'Shoots up to 9 steps in any direction.',
+    'Can pass through river.',
+    'Cannot pass through lake, canyon, cave.'
+  ],
+  [PieceTypes.NECROMANCER]: [
+    'Moves in any direction.',
+    'Shoots 1 step in any direction.',
+    'Can revive Ram, Chariot, Bomber, Paladin if Monarch, Duchess, and Warlock are in original positions.',
+    'Can shoot freeze stuns within 8 steps (range decreases by 2 for each revival).',
+    'Revived figures cannot use long-range attacks. Bomber attacks normally as Zompie.',
+    'Can pass through lake and cave.',
+    'Cannot pass through river or canyon.'
+  ]
 } as const
 
 export const OBSTACLE_NAMES = {
