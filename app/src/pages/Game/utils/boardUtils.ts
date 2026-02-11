@@ -30,18 +30,204 @@ const getBoardSizeKey = (_rows: number, cols: number): BoardSizeKey => {
   return BoardSizeKeys.SMALL
 }
 
+const FIGURE_LINE_MIN_DISTANCE = 4
+
 const isProtectedZone = (row: number, _col: number, rows: number): boolean => {
   return row < 3 || row >= rows - 3
 }
 
-const GROUPED_OBSTACLES: ObstacleType[] = [
-  ObstacleTypes.RIVER,
-  ObstacleTypes.LAKE,
-  ObstacleTypes.CAVE,
-  ObstacleTypes.CANYON,
-  ObstacleTypes.ROCK,
-  ObstacleTypes.TREE
+const isAtLeastNBlocksFromFigureLines = (row: number, rows: number, minBlocks: number): boolean => {
+  const minRow = minBlocks + 1
+  const maxRow = rows - 2 - minBlocks
+  return row >= minRow && row <= maxRow
+}
+
+const getManhattanDistance = (r1: number, c1: number, r2: number, c2: number): number => {
+  return Math.abs(r1 - r2) + Math.abs(c1 - c2)
+}
+
+const placeCaves = (board: Board, rows: number, cols: number, count: number): void => {
+  const placedPositions: { row: number; col: number }[] = []
+  let attempts = 0
+  const maxAttempts = count * 200
+
+  while (placedPositions.length < count && attempts < maxAttempts) {
+    attempts++
+    const row = Math.floor(Math.random() * rows)
+    const col = Math.floor(Math.random() * cols)
+
+    if (!isAtLeastNBlocksFromFigureLines(row, rows, FIGURE_LINE_MIN_DISTANCE)) continue
+    if (board[row][col] !== null) continue
+
+    const tooCloseToOtherCave = placedPositions.some(
+      pos => getManhattanDistance(row, col, pos.row, pos.col) < FIGURE_LINE_MIN_DISTANCE
+    )
+    if (tooCloseToOtherCave) continue
+
+    board[row][col] = { type: ObstacleTypes.CAVE }
+    placedPositions.push({ row, col })
+  }
+}
+
+const GROUPED_OBSTACLES: ObstacleType[] = []
+
+const LAKE_SHAPES: Record<number, { dr: number; dc: number }[]> = {
+  4: [{ dr: 0, dc: 0 }, { dr: 0, dc: 1 }, { dr: 1, dc: 0 }, { dr: 1, dc: 1 }],
+  5: [{ dr: 0, dc: 0 }, { dr: -1, dc: 0 }, { dr: 1, dc: 0 }, { dr: 0, dc: -1 }, { dr: 0, dc: 1 }]
+}
+
+const placeLake = (board: Board, rows: number, cols: number, count: number): void => {
+  const shape = LAKE_SHAPES[count] ?? LAKE_SHAPES[4]
+  const minDr = Math.min(...shape.map(s => s.dr))
+  const maxDr = Math.max(...shape.map(s => s.dr))
+  const minDc = Math.min(...shape.map(s => s.dc))
+  const maxDc = Math.max(...shape.map(s => s.dc))
+  const rowRange = rows - 6 - (maxDr - minDr)
+  const colRange = cols - (maxDc - minDc + 1)
+  let attempts = 0
+  const maxAttempts = 150
+
+  while (attempts < maxAttempts) {
+    attempts++
+    const baseRow = 3 - minDr + Math.floor(Math.random() * Math.max(1, rowRange))
+    const baseCol = 0 - minDc + Math.floor(Math.random() * Math.max(1, colRange))
+
+    const cells: { row: number; col: number }[] = shape.map(({ dr, dc }) => ({
+      row: baseRow + dr,
+      col: baseCol + dc
+    }))
+
+    const allInBounds = cells.every(c => c.row >= 0 && c.row < rows && c.col >= 0 && c.col < cols)
+    if (!allInBounds) continue
+
+    const allInProtected = cells.every(c => !isProtectedZone(c.row, c.col, rows))
+    if (!allInProtected) continue
+
+    const allEmpty = cells.every(c => board[c.row][c.col] === null)
+    if (!allEmpty) continue
+
+    for (const c of cells) {
+      board[c.row][c.col] = { type: ObstacleTypes.LAKE }
+    }
+    return
+  }
+}
+
+type LinearObstacleShape = 'horizontal' | 'vertical' | 'gamma'
+
+const placeLinearObstacle = (
+  board: Board,
+  obstacleType: ObstacleType,
+  rows: number,
+  cols: number,
+  count: number
+): void => {
+  const shapes: LinearObstacleShape[] = ['horizontal', 'vertical', 'gamma']
+  const shape = shapes[Math.floor(Math.random() * shapes.length)]
+  let attempts = 0
+  const maxAttempts = 150
+
+  while (attempts < maxAttempts) {
+    attempts++
+    const cells: { row: number; col: number }[] = []
+
+    if (shape === 'horizontal') {
+      const row = 3 + Math.floor(Math.random() * (rows - 6))
+      const startCol = Math.floor(Math.random() * (cols - count + 1))
+      for (let i = 0; i < count; i++) {
+        cells.push({ row, col: startCol + i })
+      }
+    } else if (shape === 'vertical') {
+      const col = Math.floor(Math.random() * cols)
+      const startRow = 3 + Math.floor(Math.random() * (rows - 6 - count + 1))
+      for (let i = 0; i < count; i++) {
+        cells.push({ row: startRow + i, col })
+      }
+    } else {
+      const leg1 = Math.ceil(count / 2)
+      const leg2 = count - leg1 + 1
+      const vertFirst = Math.random() < 0.5
+      const dir = Math.random() < 0.5 ? 1 : -1
+
+      if (vertFirst) {
+        const row = 3 + Math.floor(Math.random() * Math.max(1, rows - 6 - leg1 + 1))
+        const colRange = cols - leg2 + 1
+        const col = dir === 1 ? Math.floor(Math.random() * Math.max(1, colRange)) : (leg2 - 1) + Math.floor(Math.random() * Math.max(1, colRange))
+        for (let i = 0; i < leg1; i++) cells.push({ row: row + i, col })
+        for (let i = 1; i < leg2; i++) cells.push({ row: row + leg1 - 1, col: col + i * dir })
+      } else {
+        const rowRange = rows - 6 - leg2 + 1
+        const row = dir === 1
+          ? 3 + Math.floor(Math.random() * Math.max(1, rowRange))
+          : (2 + leg2) + Math.floor(Math.random() * Math.max(1, rows - 6 - leg2 + 1))
+        const col = Math.floor(Math.random() * Math.max(1, cols - leg1 + 1))
+        for (let i = 0; i < leg1; i++) cells.push({ row, col: col + i })
+        for (let i = 1; i < leg2; i++) cells.push({ row: row + i * dir, col: col + leg1 - 1 })
+      }
+    }
+
+    const allInBounds = cells.every(c => c.row >= 0 && c.row < rows && c.col >= 0 && c.col < cols)
+    if (!allInBounds) continue
+
+    const allInProtected = cells.every(c => !isProtectedZone(c.row, c.col, rows))
+    if (!allInProtected) continue
+
+    const allEmpty = cells.every(c => board[c.row][c.col] === null)
+    if (!allEmpty) continue
+
+    for (const c of cells) {
+      board[c.row][c.col] = { type: obstacleType }
+    }
+    return
+  }
+}
+
+const CLUSTERED_OBSTACLES: ObstacleType[] = [
+  ObstacleTypes.TREE,
+  ObstacleTypes.ROCK
 ]
+
+const placeClusteredObstacles = (
+  board: Board,
+  obstacleType: ObstacleType,
+  rows: number,
+  cols: number,
+  count: number
+): void => {
+  const placedPositions: { row: number; col: number }[] = []
+  let attempts = 0
+  const maxAttempts = count * 200
+
+  while (placedPositions.length < count && attempts < maxAttempts) {
+    attempts++
+    let row: number
+    let col: number
+
+    if (placedPositions.length === 0) {
+      row = Math.floor(Math.random() * rows)
+      col = Math.floor(Math.random() * cols)
+    } else {
+      const anchor = placedPositions[Math.floor(Math.random() * placedPositions.length)]
+      const adjacents = getAdjacentPositions(anchor.row, anchor.col)
+      const validAdjacents = adjacents.filter(pos => {
+        if (pos.row < 0 || pos.row >= rows || pos.col < 0 || pos.col >= cols) return false
+        if (isProtectedZone(pos.row, pos.col, rows)) return false
+        if (board[pos.row][pos.col] !== null) return false
+        return true
+      })
+      if (validAdjacents.length === 0) continue
+      const pos = validAdjacents[Math.floor(Math.random() * validAdjacents.length)]
+      row = pos.row
+      col = pos.col
+    }
+
+    if (isProtectedZone(row, col, rows)) continue
+    if (board[row][col] !== null) continue
+
+    board[row][col] = { type: obstacleType }
+    placedPositions.push({ row, col })
+  }
+}
 
 const getAdjacentPositions = (row: number, col: number): { row: number; col: number }[] => {
   return [
@@ -152,6 +338,26 @@ const placeObstacles = (board: Board, rows: number, cols: number): void => {
 
     if (obstacleType === ObstacleTypes.MYSTERY_BOX) {
       placeMysteryBoxes(board, rows, cols, count)
+      continue
+    }
+
+    if (obstacleType === ObstacleTypes.CAVE) {
+      placeCaves(board, rows, cols, count)
+      continue
+    }
+
+    if (obstacleType === ObstacleTypes.LAKE) {
+      placeLake(board, rows, cols, count)
+      continue
+    }
+
+    if (obstacleType === ObstacleTypes.RIVER || obstacleType === ObstacleTypes.CANYON) {
+      placeLinearObstacle(board, obstacleType, rows, cols, count)
+      continue
+    }
+
+    if (CLUSTERED_OBSTACLES.includes(obstacleType)) {
+      placeClusteredObstacles(board, obstacleType, rows, cols, count)
       continue
     }
 

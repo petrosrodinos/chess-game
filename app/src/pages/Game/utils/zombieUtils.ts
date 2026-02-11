@@ -37,6 +37,10 @@ export const getAdjustedAttackRange = (piece: Piece, baseRange: number): number 
     range = Math.max(0, range - reviveCount * 2)
   }
 
+  if (piece.isZombie && piece.type === PieceTypes.BOMBER) {
+    return 1
+  }
+
   if (piece.isZombie && piece.type !== PieceTypes.BOMBER) {
     range = Math.min(range, 1)
   }

@@ -40,7 +40,7 @@ export const getAllNarcNetPositions = (board: Board, boardSize: BoardSize): Narc
     for (let row = 0; row < boardSize.rows; row++) {
         for (let col = 0; col < boardSize.cols; col++) {
             const cell = board[row][col]
-            if (cell && isPiece(cell) && cell.type === PieceTypes.BOMBER) {
+            if (cell && isPiece(cell) && cell.type === PieceTypes.BOMBER && !cell.isZombie) {
                 const bomberPos = { row, col }
                 const narcPositions = getNarcPositions(bomberPos)
 
