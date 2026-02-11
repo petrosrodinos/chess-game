@@ -370,6 +370,100 @@ const isInAttackRange = (from: Position, to: Position, attackRange: number): boo
   return Math.max(dx, dy) <= attackRange
 }
 
+const CHARIOT_GAMMA_OFFSETS: [number, number][] = [
+  [3, 1], [3, -1], [-3, 1], [-3, -1],
+  [1, 3], [1, -3], [-1, 3], [-1, -3],
+  [4, 1], [4, -1], [-4, 1], [-4, -1],
+  [1, 4], [1, -4], [-1, 4], [-1, -4]
+]
+
+const isChariotGammaAttack = (from: Position, to: Position): boolean => {
+  const dr = to.row - from.row
+  const dc = to.col - from.col
+  return CHARIOT_GAMMA_OFFSETS.some(([or, oc]) => dr === or && dc === oc)
+}
+
+const isChariotRangedAttack = (from: Position, to: Position, maxRange: number): boolean => {
+  const dr = to.row - from.row
+  const dc = to.col - from.col
+  if (dr !== 0 && dc !== 0) return false
+  const dist = Math.abs(dr) + Math.abs(dc)
+  return dist > 0 && dist <= maxRange
+}
+
+const getRamTowerValidAttacks = (board: Board, pos: Position, boardSize: BoardSize, cell: Piece): Position[] => {
+  const attacks: Position[] = []
+  const attackRange = getAdjustedAttackRange(cell, 5)
+
+  for (let row = 0; row < boardSize.rows; row++) {
+    for (let col = 0; col < boardSize.cols; col++) {
+      if (row === pos.row && col === pos.col) continue
+
+      const targetCell = board[row][col]
+      if (!targetCell || !isPiece(targetCell)) continue
+      if (targetCell.color === cell.color) continue
+
+      const dr = row - pos.row
+      const dc = col - pos.col
+      if (dr !== 0 && dc !== 0) continue
+
+      const dist = Math.abs(dr) + Math.abs(dc)
+      if (dist > attackRange) continue
+
+      if (!isAttackPathClear(board, pos, { row, col }, cell, boardSize)) continue
+
+      attacks.push({ row, col })
+    }
+  }
+  return attacks
+}
+
+const getPaladinValidAttacks = (board: Board, pos: Position, boardSize: BoardSize, cell: Piece): Position[] => {
+  const attacks: Position[] = []
+  const attackRange = getAdjustedAttackRange(cell, 3)
+
+  for (let col = 0; col < boardSize.cols; col++) {
+    if (col === pos.col) continue
+    if (Math.abs(col - pos.col) > attackRange) continue
+
+    const target = { row: pos.row, col }
+    const targetCell = board[pos.row][col]
+    if (!targetCell || !isPiece(targetCell)) continue
+    if (targetCell.color === cell.color) continue
+
+    if (!isAttackPathClear(board, pos, target, cell, boardSize)) continue
+
+    attacks.push(target)
+  }
+  return attacks
+}
+
+const getChariotValidAttacks = (board: Board, pos: Position, boardSize: BoardSize, cell: Piece): Position[] => {
+  const attacks: Position[] = []
+  const attackRange = getAdjustedAttackRange(cell, 4)
+
+  for (let row = 0; row < boardSize.rows; row++) {
+    for (let col = 0; col < boardSize.cols; col++) {
+      if (row === pos.row && col === pos.col) continue
+
+      const targetCell = board[row][col]
+      if (!targetCell || !isPiece(targetCell)) continue
+      if (targetCell.color === cell.color) continue
+
+      const target = { row, col }
+      const isGamma = isChariotGammaAttack(pos, target)
+      const isRanged = isChariotRangedAttack(pos, target, attackRange)
+
+      if (isGamma) {
+        attacks.push(target)
+      } else if (isRanged && isAttackPathClear(board, pos, target, cell, boardSize)) {
+        attacks.push(target)
+      }
+    }
+  }
+  return attacks
+}
+
 const isAttackPathClear = (
   board: Board,
   from: Position,
@@ -415,6 +509,10 @@ export const getValidAttacks = (board: Board, pos: Position, boardSize: BoardSiz
 
   if (attackRange === 0) return []
 
+  if (cell.type === PieceTypes.RAM_TOWER) {
+    return getRamTowerValidAttacks(board, pos, boardSize, cell)
+  }
+
   if (cell.type === PieceTypes.HOPLITE) {
     for (const colOff of [-1, 1]) {
       const newCol = pos.col + colOff
@@ -426,6 +524,14 @@ export const getValidAttacks = (board: Board, pos: Position, boardSize: BoardSiz
       }
     }
     return attacks
+  }
+
+  if (cell.type === PieceTypes.CHARIOT) {
+    return getChariotValidAttacks(board, pos, boardSize, cell)
+  }
+
+  if (cell.type === PieceTypes.PALADIN) {
+    return getPaladinValidAttacks(board, pos, boardSize, cell)
   }
 
   for (let row = 0; row < boardSize.rows; row++) {
@@ -569,7 +675,7 @@ export const makeMove = (
     newBoard[from.row][from.col] = null
   }
 
-  if (piece.type === PieceTypes.BOMBER && !isAttack) {
+  if (piece.type === PieceTypes.BOMBER && !piece.isZombie && !isAttack) {
     newNarcs = removeNarcsForBomber(newNarcs, piece.id)
     const bomberNarcs = createNarcsForBomber(
       finalPosition,

@@ -47,7 +47,7 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     zombiePoints: 9
   },
   [PieceTypes.PALADIN]: {
-    move: MovePatterns.DIAGONAL,
+    move: MovePatterns.SIDEWAYS,
     attackRange: 3,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON, ObstacleTypes.MYSTERY_BOX],
     points: 15,
@@ -159,14 +159,14 @@ export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
     'Cannot pass through river, lake, or canyon.'
   ],
   [PieceTypes.RAM_TOWER]: [
-    'Moves in a cross-like pattern (orthogonal) any number of steps.',
-    'Can shoot up to 5 steps in a cross pattern.'
+    'Moves cross-shaped any number of blocks (orthogonal).',
+    'Catapult attack: cross-shaped, up to 5 blocks radius.'
   ],
   [PieceTypes.CHARIOT]: [
     'Moves in corner patterns: 2-1, 1-2, 2-2, 3-1, 1-3 steps.',
     'Can pass over other figures on its path.',
     'Units killed by Chariot cannot be revived until Chariot is destroyed.',
-    'Shooting range: 4 steps in a corner pattern only.',
+    'Attacks: Gamma-shaped (L) at 3–4 block radius and ranged orthogonal up to 4 steps.',
     'Can pass through rivers (up to 2 steps wide).',
     'Cannot pass through lake, canyon, cave.'
   ],
@@ -178,8 +178,8 @@ export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
     'Cannot pass through lake.'
   ],
   [PieceTypes.PALADIN]: [
-    'Moves sideways any number of steps.',
-    'Shoots up to 3 steps sideways.',
+    'Moves sideways any number of steps (blocked by obstacles).',
+    'Ranged attacks sideways up to 3 blocks.',
     'Can pass through river (1 step wide), cave, canyon.',
     'Cannot pass through lake.'
   ],
@@ -239,8 +239,8 @@ export const OBSTACLE_COUNTS: Record<string, Record<ObstacleType, number>> = {
     [ObstacleTypes.TREE]: 2,
     [ObstacleTypes.ROCK]: 2,
     [ObstacleTypes.LAKE]: 4,
-    [ObstacleTypes.RIVER]: 2,
-    [ObstacleTypes.CANYON]: 2,
+    [ObstacleTypes.RIVER]: 3,
+    [ObstacleTypes.CANYON]: 3,
     [ObstacleTypes.MYSTERY_BOX]: 2
   },
   [BoardSizeKeys.MEDIUM]: {
