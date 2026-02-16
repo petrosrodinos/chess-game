@@ -14,6 +14,11 @@ const canStopOnObstacle = (obstacleType: ObstacleType): boolean => {
   return obstacleType === ObstacleTypes.CAVE || obstacleType === ObstacleTypes.MYSTERY_BOX
 }
 
+const getMaxRiverWidth = (pieceType: PieceType): number => {
+  const rules = PIECE_RULES[pieceType]
+  return rules.maxRiverWidth ?? Infinity
+}
+
 const getAdjacentEmptyPositions = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
   const directions = [
     [-1, 0], [1, 0], [0, -1], [0, 1],
@@ -56,6 +61,7 @@ const isPathClear = (
   boardSize: BoardSize
 ): boolean => {
   const rules = PIECE_RULES[piece.type]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   if (rules.canJumpPieces) {
     const targetObstacle = getObstacleType(board, to.row, to.col)
@@ -70,6 +76,7 @@ const isPathClear = (
 
   let row = from.row + rowDir
   let col = from.col + colDir
+  let riverRun = 0
 
   while (row !== to.row || col !== to.col) {
     if (!isInBounds(row, col, boardSize)) return false
@@ -77,7 +84,17 @@ const isPathClear = (
     const cell = board[row][col]
     if (cell) {
       if (isPiece(cell)) return false
-      if (isObstacle(cell) && !canPassObstacle(piece.type, cell.type)) return false
+      if (isObstacle(cell)) {
+        if (!canPassObstacle(piece.type, cell.type)) return false
+        if (cell.type === ObstacleTypes.RIVER) {
+          if (riverRun >= maxRiver) return false
+          riverRun++
+        } else {
+          riverRun = 0
+        }
+      }
+    } else {
+      riverRun = 0
     }
 
     row += rowDir
@@ -133,10 +150,12 @@ const getHopliteMoves = (board: Board, pos: Position, piece: Piece, boardSize: B
 const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   for (const [rowDir, colDir] of directions) {
     let row = pos.row + rowDir
     let col = pos.col + colDir
+    let riverRun = 0
 
     while (isInBounds(row, col, boardSize)) {
       const cell = board[row][col]
@@ -145,6 +164,12 @@ const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: Boa
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
+            if (cell.type === ObstacleTypes.RIVER) {
+              if (riverRun >= maxRiver) break
+              riverRun++
+            } else {
+              riverRun = 0
+            }
             if (canStopOnObstacle(cell.type)) {
               const obstaclePos = { row, col }
               if (cell.type === ObstacleTypes.CAVE) {
@@ -162,6 +187,8 @@ const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: Boa
             break
           }
         }
+      } else {
+        riverRun = 0
       }
 
       moves.push({ row, col })
@@ -176,10 +203,12 @@ const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: Boa
 const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   const directions = [[0, -1], [0, 1]]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   for (const [rowDir, colDir] of directions) {
     let row = pos.row + rowDir
     let col = pos.col + colDir
+    let riverRun = 0
 
     while (isInBounds(row, col, boardSize)) {
       const cell = board[row][col]
@@ -188,6 +217,12 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
+            if (cell.type === ObstacleTypes.RIVER) {
+              if (riverRun >= maxRiver) break
+              riverRun++
+            } else {
+              riverRun = 0
+            }
             if (canStopOnObstacle(cell.type)) {
               const obstaclePos = { row, col }
               if (cell.type === ObstacleTypes.CAVE) {
@@ -205,6 +240,8 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
             break
           }
         }
+      } else {
+        riverRun = 0
       }
 
       moves.push({ row, col })
@@ -219,10 +256,12 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
 const getDiagonalMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   for (const [rowDir, colDir] of directions) {
     let row = pos.row + rowDir
     let col = pos.col + colDir
+    let riverRun = 0
 
     while (isInBounds(row, col, boardSize)) {
       const cell = board[row][col]
@@ -231,6 +270,12 @@ const getDiagonalMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
+            if (cell.type === ObstacleTypes.RIVER) {
+              if (riverRun >= maxRiver) break
+              riverRun++
+            } else {
+              riverRun = 0
+            }
             if (canStopOnObstacle(cell.type)) {
               const obstaclePos = { row, col }
               if (cell.type === ObstacleTypes.CAVE) {
@@ -248,6 +293,8 @@ const getDiagonalMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
             break
           }
         }
+      } else {
+        riverRun = 0
       }
 
       moves.push({ row, col })
@@ -266,8 +313,10 @@ const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSi
     [0, -1], [0, 1],
     [1, -1], [1, 0], [1, 1]
   ]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   for (const [rowDir, colDir] of directions) {
+    let riverRun = 0
     for (let step = 1; step <= maxSteps; step++) {
       const row = pos.row + (rowDir * step)
       const col = pos.col + (colDir * step)
@@ -280,6 +329,12 @@ const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSi
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
+            if (cell.type === ObstacleTypes.RIVER) {
+              if (riverRun >= maxRiver) break
+              riverRun++
+            } else {
+              riverRun = 0
+            }
             if (canStopOnObstacle(cell.type)) {
               const obstaclePos = { row, col }
               if (cell.type === ObstacleTypes.CAVE) {
@@ -295,6 +350,8 @@ const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSi
             break
           }
         }
+      } else {
+        riverRun = 0
       }
 
       moves.push({ row, col })
@@ -421,19 +478,28 @@ const getRamTowerValidAttacks = (board: Board, pos: Position, boardSize: BoardSi
 const getPaladinValidAttacks = (board: Board, pos: Position, boardSize: BoardSize, cell: Piece): Position[] => {
   const attacks: Position[] = []
   const attackRange = getAdjustedAttackRange(cell, 3)
+  const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
 
-  for (let col = 0; col < boardSize.cols; col++) {
-    if (col === pos.col) continue
-    if (Math.abs(col - pos.col) > attackRange) continue
+  for (const [rowDir, colDir] of directions) {
+    for (let step = 1; step <= attackRange; step++) {
+      const row = pos.row + rowDir * step
+      const col = pos.col + colDir * step
+      if (!isInBounds(row, col, boardSize)) break
 
-    const target = { row: pos.row, col }
-    const targetCell = board[pos.row][col]
-    if (!targetCell || !isPiece(targetCell)) continue
-    if (targetCell.color === cell.color) continue
+      const targetCell = board[row][col]
+      if (!targetCell) continue
+      if (isObstacle(targetCell)) {
+        if (!canPassObstacle(cell.type, targetCell.type)) break
+        continue
+      }
+      if (targetCell.color === cell.color) break
 
-    if (!isAttackPathClear(board, pos, target, cell, boardSize)) continue
+      const target = { row, col }
+      if (!isAttackPathClear(board, pos, target, cell, boardSize)) break
 
-    attacks.push(target)
+      attacks.push(target)
+      break
+    }
   }
   return attacks
 }
@@ -468,7 +534,7 @@ const isAttackPathClear = (
   board: Board,
   from: Position,
   to: Position,
-  _piece: Piece,
+  piece: Piece,
   boardSize: BoardSize
 ): boolean => {
   const rowDir = to.row === from.row ? 0 : (to.row > from.row ? 1 : -1)
@@ -483,13 +549,7 @@ const isAttackPathClear = (
     const cell = board[row][col]
     if (cell) {
       if (isPiece(cell)) return false
-      if (isObstacle(cell)) {
-        if (cell.type === ObstacleTypes.TREE ||
-          cell.type === ObstacleTypes.ROCK ||
-          cell.type === ObstacleTypes.CANYON) {
-          return false
-        }
-      }
+      if (isObstacle(cell) && !canPassObstacle(piece.type, cell.type)) return false
     }
 
     row += rowDir

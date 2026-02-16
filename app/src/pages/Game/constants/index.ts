@@ -47,9 +47,10 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     zombiePoints: 9
   },
   [PieceTypes.PALADIN]: {
-    move: MovePatterns.SIDEWAYS,
+    move: MovePatterns.DIAGONAL,
     attackRange: 3,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON, ObstacleTypes.MYSTERY_BOX],
+    maxRiverWidth: 1,
     points: 15,
     zombiePoints: 12
   },
@@ -178,8 +179,8 @@ export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
     'Cannot pass through lake.'
   ],
   [PieceTypes.PALADIN]: [
-    'Moves sideways any number of steps (blocked by obstacles).',
-    'Ranged attacks sideways up to 3 blocks.',
+    'Moves diagonal as many steps as possible.',
+    'Shoots up to 3 steps (diagonal).',
     'Can pass through river (1 step wide), cave, canyon.',
     'Cannot pass through lake.'
   ],
