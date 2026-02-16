@@ -68,6 +68,7 @@ export const areRevivalGuardsInPlace = (board: Board, boardSize: BoardSize, colo
     const cell = board[pos.row][pos.col]
     if (!cell || !isPiece(cell)) return false
     if (cell.type !== type || cell.color !== color) return false
+    if (cell.hasMoved) return false
   }
   return true
 }
@@ -121,6 +122,39 @@ export const isZombieReviveTargetEmpty = (board: Board, target: Position | null)
   return board[target.row][target.col] === null
 }
 
+export const getZombieRevivePlacementTarget = (
+  board: Board,
+  boardSize: BoardSize,
+  revivePiece: Piece,
+  currentPlayer: PlayerColor
+): Position | null => {
+  const originalPosition = getStartingPositionForPieceType(boardSize, revivePiece.type, currentPlayer)
+  if (!originalPosition) return null
+  if (board[originalPosition.row][originalPosition.col] === null) return originalPosition
+
+  let nearest: Position | null = null
+  let nearestDistance = Number.POSITIVE_INFINITY
+
+  for (let row = 0; row < boardSize.rows; row++) {
+    for (let col = 0; col < boardSize.cols; col++) {
+      if (board[row][col] !== null) continue
+      const distance = Math.abs(row - originalPosition.row) + Math.abs(col - originalPosition.col)
+      if (distance < nearestDistance) {
+        nearest = { row, col }
+        nearestDistance = distance
+        continue
+      }
+      if (distance === nearestDistance && nearest) {
+        if (row < nearest.row || (row === nearest.row && col < nearest.col)) {
+          nearest = { row, col }
+        }
+      }
+    }
+  }
+
+  return nearest
+}
+
 export const getZombieReviveOpenState = (params: {
   gameOver: boolean
   mysteryBoxActive: boolean
@@ -140,8 +174,7 @@ export const getZombieReviveOpenState = (params: {
 export const getZombieReviveConfirmState = (params: {
   necromancerPosition: Position | null
   selectedZombiePiece: Piece | null
-  selectedZombieTarget: Position | null
-  targetIsEmpty: boolean
+  reviveTarget: Position | null
   guardsInPlace: boolean
   isOnline: boolean
   isMyTurn: boolean
@@ -149,15 +182,14 @@ export const getZombieReviveConfirmState = (params: {
   const {
     necromancerPosition,
     selectedZombiePiece,
-    selectedZombieTarget,
-    targetIsEmpty,
+    reviveTarget,
     guardsInPlace,
     isOnline,
     isMyTurn
   } = params
 
-  if (!necromancerPosition || !selectedZombiePiece || !selectedZombieTarget) return false
-  if (!targetIsEmpty || !guardsInPlace) return false
+  if (!necromancerPosition || !selectedZombiePiece || !reviveTarget) return false
+  if (!guardsInPlace) return false
   if (isOnline && !isMyTurn) return false
   return true
 }
@@ -169,8 +201,7 @@ export const getZombieReviveStatusMessage = (params: {
   guardsInPlace: boolean
   revivableCount: number
   selectedZombiePiece: Piece | null
-  selectedZombieTarget: Position | null
-  targetIsEmpty: boolean
+  reviveTarget: Position | null
 }): string | null => {
   const {
     isOnline,
@@ -179,15 +210,13 @@ export const getZombieReviveStatusMessage = (params: {
     guardsInPlace,
     revivableCount,
     selectedZombiePiece,
-    selectedZombieTarget,
-    targetIsEmpty
+    reviveTarget
   } = params
 
   if (isOnline && !isMyTurn) return 'Wait for your turn to revive a Zombie.'
   if (!necromancerPosition) return 'Your Necromancer must be on the board.'
-  if (!guardsInPlace) return 'Warlock, Monarch, and Duchess must be in their starting positions.'
+  if (!guardsInPlace) return 'Warlock, Monarch, and Duchess must be in their starting positions and must not have moved.'
   if (revivableCount === 0) return 'No eligible captured pieces available.'
-  if (selectedZombiePiece && !selectedZombieTarget) return 'Select an empty tile to place the Zombie.'
-  if (selectedZombieTarget && !targetIsEmpty) return 'The selected tile is not empty.'
+  if (selectedZombiePiece && !reviveTarget) return 'No empty tiles available to place the Zombie.'
   return null
 }

@@ -32,7 +32,7 @@ export const ZombieReviveModal = ({
         <div className="text-stone-300 text-sm bg-violet-900/20 border border-violet-700/30 rounded-lg p-3">
           <p className="font-semibold text-violet-200 mb-2">Instructions</p>
           <p className="text-violet-100">
-            Pick a captured enemy piece to revive as a Zombie (only Ram-Tower, Chariot, Bomber, or Paladin), then click an empty tile to place it and confirm to end your turn.
+            Pick one of your captured pieces to revive as a Zombie (only Ram-Tower, Chariot, Bomber, or Paladin), then confirm. It will be placed on its original tile, or the nearest empty tile if occupied.
           </p>
         </div>
 
@@ -76,7 +76,7 @@ export const ZombieReviveModal = ({
 
         <div className="flex items-center justify-between text-xs text-stone-400">
           <span>
-            {selectedTarget ? `Target: ${selectedTarget.row + 1}, ${selectedTarget.col + 1}` : 'Select an empty tile'}
+            {selectedTarget ? `Placement: ${selectedTarget.row + 1}, ${selectedTarget.col + 1}` : 'No valid placement available'}
           </span>
         </div>
 

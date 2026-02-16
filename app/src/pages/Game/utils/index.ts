@@ -49,6 +49,7 @@ export {
   getStartingPositionForPieceType,
   getZombieRevivePieces,
   isZombieReviveTargetEmpty,
+  getZombieRevivePlacementTarget,
   getZombieReviveOpenState,
   getZombieReviveConfirmState,
   getZombieReviveStatusMessage
