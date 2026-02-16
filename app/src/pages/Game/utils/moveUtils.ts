@@ -6,6 +6,9 @@ import { createNarcsForBomber, checkNarcNetTrigger, removeNarcsForBomber } from 
 import { getAdjustedAttackRange } from './zombieUtils'
 
 const canPassObstacle = (pieceType: PieceType, obstacleType: ObstacleType): boolean => {
+  if (pieceType === PieceTypes.DUCHESS && obstacleType === ObstacleTypes.TREE) {
+    return false
+  }
   const rules = PIECE_RULES[pieceType]
   return rules.canPass.includes(obstacleType)
 }
