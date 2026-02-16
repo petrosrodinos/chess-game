@@ -75,7 +75,7 @@ export const PIECE_RULES: Record<string, PieceRules> = {
   },
   [PieceTypes.NECROMANCER]: {
     move: [[1, 0], [0, 1], [1, 1]],
-    attackRange: 8,
+    attackRange: 1,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE, ObstacleTypes.MYSTERY_BOX],
     points: 13
   }
@@ -205,10 +205,9 @@ export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
     'Cannot pass through lake, canyon, cave.'
   ],
   [PieceTypes.NECROMANCER]: [
-    'Moves in any direction.',
+    'Moves 1 step in any direction.',
     'Shoots 1 step in any direction.',
     'Can revive Ram, Chariot, Bomber, Paladin if Monarch, Duchess, and Warlock are in original positions.',
-    'Can shoot freeze stuns within 8 steps (range decreases by 2 for each revival).',
     'Revived figures cannot use long-range attacks. Bomber attacks normally as Zompie.',
     'Can pass through lake and cave.',
     'Cannot pass through river or canyon.'
