@@ -11,6 +11,7 @@ import { SoundEvents } from '../config/audio'
 import { getMoveSound, isValidSoundEvent } from '../utils/sound.utils'
 import type { GameSession } from '../features/game/interfaces'
 import type { Position, Piece } from '../pages/Game/types'
+import { PIECE_NAMES, PIECE_SYMBOLS } from '../pages/Game/constants'
 
 interface MysteryBoxTriggeredPayload {
     code: string
@@ -43,6 +44,7 @@ export const useOnlineGame = () => {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const gameCodeRef = useRef(gameCode)
     const resetRef = useRef<() => void>(() => { })
+    const lastCaptureToastKeyRef = useRef<string | null>(null)
 
     const {
         gameSession,
@@ -119,6 +121,16 @@ export const useOnlineGame = () => {
             syncFromServer(session)
             if (isValidSoundEvent(soundKey)) {
                 SoundManager.play(soundKey)
+            }
+            const lastMove = session.gameState?.lastMove
+            if (lastMove?.captured) {
+                const toastKey = `${lastMove.from.row},${lastMove.from.col}-${lastMove.to.row},${lastMove.to.col}-${lastMove.piece.id}-${lastMove.captured.id}`
+                if (lastCaptureToastKeyRef.current !== toastKey) {
+                    lastCaptureToastKeyRef.current = toastKey
+                    const killerIcon = PIECE_SYMBOLS[lastMove.piece.color][lastMove.piece.type]
+                    const victimIcon = PIECE_SYMBOLS[lastMove.captured.color][lastMove.captured.type]
+                    toast.info(`${killerIcon} ${PIECE_NAMES[lastMove.piece.type]} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 })
+                }
             }
         }
 

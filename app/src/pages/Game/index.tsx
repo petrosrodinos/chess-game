@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { Loader2 } from "lucide-react";
 import { Board } from "./components/Board";
 import { Board3D } from "./components/Board3D";
@@ -15,6 +16,7 @@ import { useUIStore } from "../../store/uiStore";
 import { useGameMode, useOnlineGame, useSoundEffects } from "../../hooks";
 import { PlayerColors, MysteryBoxPhases, PieceTypes, ObstacleTypes, isObstacle, type Piece } from "./types";
 import { BOT_DELAY } from "./constants";
+import { PIECE_NAMES, PIECE_SYMBOLS } from "./constants";
 import { environments } from "../../config/environments";
 import { GameModes } from "../../constants";
 import { areRevivalGuardsInPlace, findPiecePosition, getZombieRevivePieces, getZombieReviveStatusMessage, getZombieReviveConfirmState, getZombieRevivePlacementTarget } from "./utils";
@@ -78,6 +80,18 @@ export const Game = () => {
       prevGameOverRef.current = false;
     }
   }, [isOnline, onlineGameOver, gameState.gameOver, playGameOver]);
+
+  const lastCaptureToastKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isOnline) return;
+    if (!lastMove || !lastMove.captured) return;
+    const toastKey = `${lastMove.from.row},${lastMove.from.col}-${lastMove.to.row},${lastMove.to.col}-${lastMove.piece.id}-${lastMove.captured.id}`;
+    if (lastCaptureToastKeyRef.current === toastKey) return;
+    lastCaptureToastKeyRef.current = toastKey;
+    const killerIcon = PIECE_SYMBOLS[lastMove.piece.color][lastMove.piece.type];
+    const victimIcon = PIECE_SYMBOLS[lastMove.captured.color][lastMove.captured.type];
+    toast.info(`${killerIcon} ${PIECE_NAMES[lastMove.piece.type]} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 });
+  }, [isOnline, lastMove]);
 
   useEffect(() => {
     if (!isOnline) startGameTimer();
