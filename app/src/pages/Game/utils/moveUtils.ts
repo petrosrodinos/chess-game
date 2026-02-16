@@ -555,8 +555,6 @@ const getRamTowerValidAttacks = (board: Board, pos: Position, boardSize: BoardSi
       const dist = Math.abs(dr) + Math.abs(dc)
       if (dist > attackRange) continue
 
-      if (!isAttackPathClear(board, pos, { row, col }, cell, boardSize)) continue
-
       attacks.push({ row, col })
     }
   }
