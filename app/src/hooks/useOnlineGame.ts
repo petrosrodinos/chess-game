@@ -11,6 +11,7 @@ import { SoundEvents } from '../config/audio'
 import { getMoveSound, isValidSoundEvent } from '../utils/sound.utils'
 import type { GameSession } from '../features/game/interfaces'
 import type { Position, Piece } from '../pages/Game/types'
+import { PIECE_NAMES, PIECE_SYMBOLS } from '../pages/Game/constants'
 
 interface MysteryBoxTriggeredPayload {
     code: string
@@ -43,6 +44,7 @@ export const useOnlineGame = () => {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const gameCodeRef = useRef(gameCode)
     const resetRef = useRef<() => void>(() => { })
+    const lastCaptureToastKeyRef = useRef<string | null>(null)
 
     const {
         gameSession,
@@ -120,6 +122,20 @@ export const useOnlineGame = () => {
             if (isValidSoundEvent(soundKey)) {
                 SoundManager.play(soundKey)
             }
+            const lastMove = session.gameState?.lastMove
+            if (lastMove?.captured) {
+                const toastKey = `${lastMove.from.row},${lastMove.from.col}-${lastMove.to.row},${lastMove.to.col}-${lastMove.piece.id}-${lastMove.captured.id}`
+                if (lastCaptureToastKeyRef.current !== toastKey) {
+                    lastCaptureToastKeyRef.current = toastKey
+                    const victimIcon = PIECE_SYMBOLS[lastMove.captured.color][lastMove.captured.type]
+                    const killerIcon = PIECE_SYMBOLS[lastMove.piece.color][lastMove.piece.type]
+                    if (lastMove.terminatedByNarc) {
+                        toast.info(`${killerIcon} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 })
+                    } else {
+                        toast.info(`${killerIcon} ${PIECE_NAMES[lastMove.piece.type]} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 })
+                    }
+                }
+            }
         }
 
         const handlePlayerJoined = (data: GameSession & { joinedPlayerId?: string }) => {
@@ -168,7 +184,7 @@ export const useOnlineGame = () => {
 
             const opponentOptionDescriptions: Record<number, string> = {
                 1: `🔄 ${data.playerName} can swap two of their pieces!`,
-                2: `⚔️ ${data.playerName} will sacrifice a Hoplite to revive one of your captured pieces!`,
+                2: `⚔️ ${data.playerName} will sacrifice a Hoplite to revive one of their captured pieces!`,
                 3: `🎲 ${data.playerName} rolled ${data.diceRoll}! They can swap ${data.diceRoll} obstacle(s) with empty tiles!`
             }
 
@@ -316,7 +332,7 @@ export const useOnlineGame = () => {
 
             const optionDescriptions: Record<number, string> = {
                 1: '✨ Swap positions of any two of your pieces!',
-                2: '⚔️ Sacrifice a Hoplite to revive an opponent piece as your own!',
+                2: '⚔️ Sacrifice a Hoplite to revive one of your captured pieces!',
                 3: `🎲 Roll: ${result.diceRoll}! Swap ${result.diceRoll} obstacle(s) with empty tiles!`
             }
 

@@ -16,9 +16,10 @@ import { useUIStore } from "../../store/uiStore";
 import { useGameMode, useOnlineGame, useSoundEffects } from "../../hooks";
 import { PlayerColors, MysteryBoxPhases, PieceTypes, ObstacleTypes, isObstacle, type Piece } from "./types";
 import { BOT_DELAY } from "./constants";
+import { PIECE_NAMES, PIECE_SYMBOLS } from "./constants";
 import { environments } from "../../config/environments";
 import { GameModes } from "../../constants";
-import { areRevivalGuardsInPlace, findPiecePosition, getZombieRevivePieces, getZombieReviveStatusMessage, getZombieReviveConfirmState, isZombieReviveTargetEmpty } from "./utils";
+import { areRevivalGuardsInPlace, findPiecePosition, getZombieRevivePieces, getZombieReviveStatusMessage, getZombieReviveConfirmState, getZombieRevivePlacementTarget } from "./utils";
 
 export const Game = () => {
   const { mode } = useGameMode();
@@ -29,9 +30,7 @@ export const Game = () => {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isZombieReviveOpen, setIsZombieReviveOpen] = useState(false);
-  const [awaitingZombiePlacement, setAwaitingZombiePlacement] = useState(false);
   const [selectedZombiePiece, setSelectedZombiePiece] = useState<Piece | null>(null);
-  const [selectedZombieTarget, setSelectedZombieTarget] = useState<{ row: number; col: number } | null>(null);
 
   const { gameSession, board: onlineBoard, boardSize: onlineBoardSize, selectedPosition: onlineSelectedPosition, validMoves: onlineValidMoves, validAttacks: onlineValidAttacks, validSwaps: onlineValidSwaps, lastMove: onlineLastMove, capturedPieces: onlineCapturedPieces, gameOver: onlineGameOver, winner: onlineWinner, mysteryBoxState: onlineMysteryBoxState, currentPlayer, isMyTurn, isLoading, error, handleSquareClick, selectRevivePiece: onlineSelectRevivePiece, cancelMysteryBox: onlineCancelMysteryBox, requestZombieRevive, notifyReviveStarted } = useOnlineGame();
 
@@ -82,6 +81,22 @@ export const Game = () => {
     }
   }, [isOnline, onlineGameOver, gameState.gameOver, playGameOver]);
 
+  const lastCaptureToastKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isOnline) return;
+    if (!lastMove || !lastMove.captured) return;
+    const toastKey = `${lastMove.from.row},${lastMove.from.col}-${lastMove.to.row},${lastMove.to.col}-${lastMove.piece.id}-${lastMove.captured.id}`;
+    if (lastCaptureToastKeyRef.current === toastKey) return;
+    lastCaptureToastKeyRef.current = toastKey;
+    const victimIcon = PIECE_SYMBOLS[lastMove.captured.color][lastMove.captured.type];
+    const killerIcon = PIECE_SYMBOLS[lastMove.piece.color][lastMove.piece.type];
+    if (lastMove.terminatedByNarc) {
+      toast.info(`${killerIcon} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 });
+    } else {
+      toast.info(`${killerIcon} ${PIECE_NAMES[lastMove.piece.type]} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 });
+    }
+  }, [isOnline, lastMove]);
+
   useEffect(() => {
     if (!isOnline) startGameTimer();
   }, [isOnline, startGameTimer]);
@@ -104,20 +119,20 @@ export const Game = () => {
   const guardsInPlace = useMemo(() => {
     return areRevivalGuardsInPlace(board, boardSize, currentPlayerColor);
   }, [board, boardSize, currentPlayerColor]);
-  const targetIsEmpty = useMemo(() => {
-    return isZombieReviveTargetEmpty(board, selectedZombieTarget);
-  }, [board, selectedZombieTarget]);
+  const reviveTarget = useMemo(() => {
+    if (!selectedZombiePiece) return null;
+    return getZombieRevivePlacementTarget(board, boardSize, selectedZombiePiece, currentPlayerColor);
+  }, [board, boardSize, selectedZombiePiece, currentPlayerColor]);
   const canConfirmZombieRevive = useMemo(() => {
     return getZombieReviveConfirmState({
       necromancerPosition,
       selectedZombiePiece,
-      selectedZombieTarget,
-      targetIsEmpty,
+      reviveTarget,
       guardsInPlace,
       isOnline,
       isMyTurn,
     });
-  }, [necromancerPosition, selectedZombiePiece, selectedZombieTarget, targetIsEmpty, guardsInPlace, isOnline, isMyTurn]);
+  }, [necromancerPosition, selectedZombiePiece, reviveTarget, guardsInPlace, isOnline, isMyTurn]);
 
   const zombieReviveStatusMessage = useMemo(() => {
     return getZombieReviveStatusMessage({
@@ -127,23 +142,18 @@ export const Game = () => {
       guardsInPlace,
       revivableCount: revivableZombiePieces.length,
       selectedZombiePiece,
-      selectedZombieTarget,
-      targetIsEmpty,
+      reviveTarget,
     });
-  }, [isOnline, isMyTurn, necromancerPosition, guardsInPlace, revivableZombiePieces.length, selectedZombiePiece, selectedZombieTarget, targetIsEmpty]);
+  }, [isOnline, isMyTurn, necromancerPosition, guardsInPlace, revivableZombiePieces.length, selectedZombiePiece, reviveTarget]);
 
   const openZombieRevive = () => {
     setSelectedZombiePiece(null);
-    setSelectedZombieTarget(null);
-    setAwaitingZombiePlacement(false);
     setIsZombieReviveOpen(true);
   };
 
   const closeZombieRevive = () => {
     setIsZombieReviveOpen(false);
-    setAwaitingZombiePlacement(false);
     setSelectedZombiePiece(null);
-    setSelectedZombieTarget(null);
   };
 
   const executeRevive = (target: { row: number; col: number }) => {
@@ -171,24 +181,15 @@ export const Game = () => {
   };
 
   const confirmZombieRevive = () => {
-    if (!selectedZombiePiece || !selectedZombieTarget || !necromancerPosition) return;
+    if (!selectedZombiePiece || !reviveTarget || !necromancerPosition) return;
     if (!canConfirmZombieRevive) return;
-    executeRevive(selectedZombieTarget);
+    executeRevive(reviveTarget);
   };
 
   const handleReviveZombieClick = () => {
-    if (!selectedZombiePiece) return;
-    if (selectedZombieTarget && canConfirmZombieRevive) {
-      confirmZombieRevive();
-      return;
-    }
-    if (isOnline) {
-      notifyReviveStarted();
-    }
-    setIsZombieReviveOpen(false);
-    setSelectedZombieTarget(null);
-    setAwaitingZombiePlacement(true);
-    toast.info("Select an empty tile on the board to place the revived piece.", { autoClose: 5000 });
+    if (!selectedZombiePiece || !canConfirmZombieRevive) return;
+    if (isOnline) notifyReviveStarted();
+    confirmZombieRevive();
   };
 
   const onSquareClick = (pos: { row: number; col: number }) => {
@@ -213,20 +214,6 @@ export const Game = () => {
       playBoardClick();
     }
 
-    if (awaitingZombiePlacement) {
-      if (board[pos.row][pos.col] === null) {
-        executeRevive(pos);
-      } else {
-        toast.warning("Select an empty tile to place the revived piece.", { autoClose: 3000 });
-      }
-      return;
-    }
-    if (isZombieReviveOpen) {
-      if (board[pos.row][pos.col] === null) {
-        setSelectedZombieTarget(pos);
-      }
-      return;
-    }
     if (isOnline) {
       handleSquareClick(pos);
     } else {
@@ -300,7 +287,7 @@ export const Game = () => {
 
         <MysteryBoxReviveModal isOpen={mysteryBoxState.isActive && mysteryBoxState.phase === MysteryBoxPhases.WAITING_REVIVE_FIGURE} onClose={cancelMysteryBox} pieces={mysteryBoxState.revivablePieces} onSelectPiece={selectRevivePiece} selectedPieceId={mysteryBoxState.selectedRevivePiece?.id || null} />
 
-        <ZombieReviveModal isOpen={isZombieReviveOpen} onClose={closeZombieRevive} pieces={revivableZombiePieces} onSelectPiece={setSelectedZombiePiece} selectedPieceId={selectedZombiePiece?.id || null} selectedTarget={selectedZombieTarget} onConfirm={handleReviveZombieClick} canConfirm={!!selectedZombiePiece} statusMessage={zombieReviveStatusMessage} />
+        <ZombieReviveModal isOpen={isZombieReviveOpen} onClose={closeZombieRevive} pieces={revivableZombiePieces} onSelectPiece={setSelectedZombiePiece} selectedPieceId={selectedZombiePiece?.id || null} selectedTarget={reviveTarget} onConfirm={handleReviveZombieClick} canConfirm={canConfirmZombieRevive} statusMessage={zombieReviveStatusMessage} />
       </div>
     </div>
   );

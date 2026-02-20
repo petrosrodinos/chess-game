@@ -72,9 +72,23 @@ export const RulesPage = () => {
             <li className="flex gap-2">
               <span className="text-amber-500/80 mt-0.5">•</span>
               <span>
-                <strong className="text-stone-300">MysteryBox:</strong> Special interactive square (effect depends on game variant or player rules).
+                <strong className="text-stone-300">MysteryBox (Faction):</strong> A randomly generated option is given to the player that hits the Box.
               </span>
             </li>
+            <ul className="ml-6 mt-2 space-y-2 text-stone-400 text-sm list-none">
+              <li className="flex gap-2">
+                <span className="text-amber-500/80 mt-0.5 font-medium text-stone-300">Option 1:</span>
+                <span>Pick one of your figures and swap it with another one.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-amber-500/80 mt-0.5 font-medium text-stone-300">Option 2:</span>
+                <span>Release a Hoplite figure and revive another figure of your choosing (among those that the opponent has killed). The revived figure will possess full range-attack capabilities. The block where it is revived must be empty.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-amber-500/80 mt-0.5 font-medium text-stone-300">Option 3:</span>
+                <span>Roll a dice; depending on the number rolled you can choose obstacle blocks up to that number and swap them with an equal amount of empty blocks on the map. You can pick individual obstacle blocks (Cave, Tree, Rock) or an entire set of obstacle blocks if the number rolled allows it (Canyon, River, Lake).</span>
+              </li>
+            </ul>
           </ul>
         </section>
 
@@ -202,6 +216,86 @@ export const RulesPage = () => {
             <span className="flex w-8 h-8 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400 text-sm font-semibold">4</span>
             Figures – movement and abilities
           </h2>
+
+          <p className="text-stone-400 mb-4">Pass through terrain:</p>
+          <div className="overflow-x-auto rounded-xl border border-stone-700/60 bg-stone-900/50 mb-10">
+            <table className="w-full min-w-[520px] border-collapse">
+              <thead>
+                <tr className="border-b border-stone-700/60">
+                  <th className="text-left py-3.5 px-4 text-sm font-semibold text-amber-200/90 bg-stone-800/60">Figure</th>
+                  <th className="text-left py-3.5 px-4 text-sm font-semibold text-amber-200/90 bg-stone-800/60">Cave</th>
+                  <th className="text-left py-3.5 px-4 text-sm font-semibold text-amber-200/90 bg-stone-800/60">River</th>
+                  <th className="text-left py-3.5 px-4 text-sm font-semibold text-amber-200/90 bg-stone-800/60">Lake</th>
+                  <th className="text-left py-3.5 px-4 text-sm font-semibold text-amber-200/90 bg-stone-800/60">Canyon</th>
+                </tr>
+              </thead>
+              <tbody className="text-stone-300 text-sm">
+                <tr className="border-b border-stone-700/40 hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Monarch</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                </tr>
+                <tr className="border-b border-stone-700/40 hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Duchess</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                </tr>
+                <tr className="border-b border-stone-700/40 hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Ram-Tower</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                </tr>
+                <tr className="border-b border-stone-700/40 hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Chariot</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                </tr>
+                <tr className="border-b border-stone-700/40 hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Paladin</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">YES</td>
+                </tr>
+                <tr className="border-b border-stone-700/40 hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Saboteur / Bomber</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4 text-stone-400">YES (1 block)</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                </tr>
+                <tr className="border-b border-stone-700/40 hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Necromancer / Druid</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4">NO</td>
+                </tr>
+                <tr className="border-b border-stone-700/40 hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Warlock / Vezier</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4">NO</td>
+                </tr>
+                <tr className="hover:bg-stone-800/30 transition-colors">
+                  <td className="py-3.5 px-4 font-medium text-stone-200">Legionnaire / Hoplite</td>
+                  <td className="py-3.5 px-4">YES</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                  <td className="py-3.5 px-4">NO</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <div className="space-y-10">
             {RULES_FIGURE_ORDER.map((pieceType, index) => (
