@@ -127,9 +127,13 @@ export const useOnlineGame = () => {
                 const toastKey = `${lastMove.from.row},${lastMove.from.col}-${lastMove.to.row},${lastMove.to.col}-${lastMove.piece.id}-${lastMove.captured.id}`
                 if (lastCaptureToastKeyRef.current !== toastKey) {
                     lastCaptureToastKeyRef.current = toastKey
-                    const killerIcon = PIECE_SYMBOLS[lastMove.piece.color][lastMove.piece.type]
                     const victimIcon = PIECE_SYMBOLS[lastMove.captured.color][lastMove.captured.type]
-                    toast.info(`${killerIcon} ${PIECE_NAMES[lastMove.piece.type]} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 })
+                    const killerIcon = PIECE_SYMBOLS[lastMove.piece.color][lastMove.piece.type]
+                    if (lastMove.terminatedByNarc) {
+                        toast.info(`${killerIcon} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 })
+                    } else {
+                        toast.info(`${killerIcon} ${PIECE_NAMES[lastMove.piece.type]} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 })
+                    }
                 }
             }
         }
