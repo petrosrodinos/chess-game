@@ -37,5 +37,6 @@ lerna-debug.log*
 /.env.production
 /.env.local
 /.env.development
+/.env.staging
 /docker-compose.local.yml.env*
 /src/shared/config/gcs-key.json
