@@ -1,6 +1,6 @@
 import type { Piece } from '../../types'
 import { PieceTypes, PlayerColors } from '../../types'
-import { PIECE_SYMBOLS, PIECE_RULES } from '../../constants'
+import { PIECE_SYMBOLS, PIECE_RULES, PIECE_NAMES } from '../../constants'
 import { useGameStore } from '../../../../store/gameStore'
 
 interface RightSidebarProps {
@@ -10,7 +10,7 @@ interface RightSidebarProps {
 export const RightSidebar = ({
     onOpenZombieRevive,
 }: RightSidebarProps) => {
-    const { gameState } = useGameStore()
+    const { gameState, selectedPosition, validAttacks, attackMode, setAttackMode } = useGameStore()
 
     const capturedPieces = gameState.capturedPieces
     // const moveHistory = isOnline && onlineMoveHistory
@@ -59,9 +59,49 @@ export const RightSidebar = ({
     }
 
     const reviveSectionColor = gameState.currentPlayer
+    const currentSelectedPosition = gameState.selectedPosition ?? selectedPosition
+    const currentValidAttacks = gameState.selectedPosition ? gameState.validAttacks : validAttacks
+    const selectedCell = currentSelectedPosition ? gameState.board[currentSelectedPosition.row]?.[currentSelectedPosition.col] : null
+    const showAttackModeMenu = Boolean(
+        selectedCell &&
+        'color' in selectedCell &&
+        PIECE_RULES[selectedCell.type].canChooseAttackMode &&
+        currentValidAttacks.length > 0
+    )
 
     return (
         <div className="bg-stone-800/80 backdrop-blur rounded-xl p-4 border border-stone-700 w-64">
+            {showAttackModeMenu && selectedCell && 'color' in selectedCell && (
+                <div className="mb-4 border border-stone-700 rounded-lg p-3 bg-stone-900/50">
+                    <h3 className="text-sm font-medium text-amber-200 mb-2">
+                        {PIECE_NAMES[selectedCell.type]} Attack Mode
+                    </h3>
+                    <div className="grid gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setAttackMode('ranged')}
+                            className={`text-xs rounded-md px-2 py-2 border transition-colors ${
+                                attackMode === 'ranged'
+                                    ? 'bg-rose-700 border-rose-500 text-rose-100'
+                                    : 'bg-stone-800 border-stone-600 text-stone-200 hover:bg-stone-700'
+                            }`}
+                        >
+                            Range attack (kill without moving)
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setAttackMode('capture')}
+                            className={`text-xs rounded-md px-2 py-2 border transition-colors ${
+                                attackMode === 'capture'
+                                    ? 'bg-emerald-700 border-emerald-500 text-emerald-100'
+                                    : 'bg-stone-800 border-stone-600 text-stone-200 hover:bg-stone-700'
+                            }`}
+                        >
+                            Capture and move to target
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="mb-4">
                 <h3 className="text-sm font-medium text-amber-200 mb-2">Captured Pieces</h3>
                 <div className="space-y-2">

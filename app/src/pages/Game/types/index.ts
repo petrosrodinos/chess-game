@@ -61,6 +61,7 @@ export interface PieceRules {
   attackRange: number
   canPass: ObstacleType[]
   canJumpPieces?: boolean
+  canChooseAttackMode: boolean
   points: number
   zombiePoints?: number
 }

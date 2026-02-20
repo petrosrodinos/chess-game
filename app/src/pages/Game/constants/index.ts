@@ -22,12 +22,14 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     move: [3, 2],
     attackRange: 1,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: false,
     points: 3
   },
   [PieceTypes.RAM_TOWER]: {
     move: MovePatterns.CROSS,
     attackRange: 5,
     canPass: [ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: true,
     points: 20
   },
   [PieceTypes.CHARIOT]: {
@@ -35,6 +37,7 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     attackRange: 4,
     canPass: [ObstacleTypes.RIVER, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
+    canChooseAttackMode: true,
     points: 16,
     zombiePoints: 13
   },
@@ -43,6 +46,7 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     attackRange: 0,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
+    canChooseAttackMode: false,
     points: 12,
     zombiePoints: 9
   },
@@ -50,6 +54,7 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     move: MovePatterns.SIDEWAYS,
     attackRange: 3,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: true,
     points: 15,
     zombiePoints: 12
   },
@@ -58,24 +63,28 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     attackRange: 2,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
+    canChooseAttackMode: false,
     points: 11
   },
   [PieceTypes.MONARCH]: {
     move: MovePatterns.ANY,
     attackRange: 1,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: true,
     points: 210
   },
   [PieceTypes.DUCHESS]: {
     move: MovePatterns.ANY,
     attackRange: 9,
     canPass: [ObstacleTypes.RIVER, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: true,
     points: 27
   },
   [PieceTypes.NECROMANCER]: {
     move: [[1, 0], [0, 1], [1, 1]],
     attackRange: 8,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: false,
     points: 13
   }
 } as const

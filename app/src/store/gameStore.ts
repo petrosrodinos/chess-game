@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { toast } from 'react-toastify'
 import type { GameState, Position, BotDifficulty, HintMove, BoardSizeKey, PlayerColor, CellContent, SwapTarget, MysteryBoxState, Piece } from '../pages/Game/types'
 import { isPiece, isObstacle, BOARD_SIZES, PlayerColors, BotDifficulties, BoardSizeKeys, PieceTypes, MysteryBoxOptions, MysteryBoxPhases, ObstacleTypes } from '../pages/Game/types'
-import { DEFAULT_BOARD_SIZE } from '../pages/Game/constants'
+import { DEFAULT_BOARD_SIZE, PIECE_RULES } from '../pages/Game/constants'
 import type { GameSession, Player } from '../features/game/interfaces'
 import {
     createInitialBoard,
@@ -44,6 +44,8 @@ interface MysteryBoxTriggerResult {
     optionName: string | null
 }
 
+type AttackMode = 'ranged' | 'capture'
+
 interface GameStore {
     gameState: GameState
     boardSizeKey: BoardSizeKey
@@ -59,6 +61,8 @@ interface GameStore {
     validMoves: Position[]
     validAttacks: Position[]
     validSwaps: SwapTarget[]
+    attackMode: AttackMode
+    setAttackMode: (mode: AttackMode) => void
     reviveZombie: (payload: { necromancerPosition: Position; revivePiece: Piece; target: Position }) => boolean
 
     gameSession: GameSession | null
@@ -152,11 +156,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     validMoves: [],
     validAttacks: [],
     validSwaps: [],
+    attackMode: 'ranged',
 
     gameSession: null,
     currentPlayerId: null,
     isLoading: false,
     error: null,
+    setAttackMode: (mode: AttackMode) => {
+        set({ attackMode: mode })
+    },
 
     canUndo: () => {
         const { history, gameState, botThinking } = get()
@@ -169,7 +177,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     },
 
     selectSquare: (pos: Position, isOnline = false): MysteryBoxTriggerResult | boolean => {
-        const { gameState, botEnabled, history, mysteryBoxState, gameSession, currentPlayerId, selectedPosition, validMoves, validAttacks, validSwaps } = get()
+        const { gameState, botEnabled, history, mysteryBoxState, gameSession, currentPlayerId, selectedPosition, validMoves, validAttacks, validSwaps, attackMode } = get()
 
         if (isOnline) {
             if (!gameSession || !gameState) return false
@@ -308,12 +316,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         }
                     }
 
+                    const selectedCell = board[selectedPosition.row][selectedPosition.col]
+                    const canChooseAttackMode = selectedCell && isPiece(selectedCell)
+                        ? PIECE_RULES[selectedCell.type].canChooseAttackMode
+                        : false
+                    const shouldUseRangedAttack = isValidAttackTarget && (!canChooseAttackMode || attackMode === 'ranged')
                     const { newBoard, move, newNarcs } = makeMove(
                         board,
                         selectedPosition,
                         pos,
                         boardSize,
-                        isValidAttackTarget,
+                        shouldUseRangedAttack,
                         gameState.narcs
                     )
 
@@ -351,7 +364,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         selectedPosition: null,
                         validMoves: [],
                         validAttacks: [],
-                        validSwaps: []
+                        validSwaps: [],
+                        attackMode: 'ranged'
                     })
 
                     return true
@@ -363,7 +377,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                             selectedPosition: null,
                             validMoves: [],
                             validAttacks: [],
-                            validSwaps: []
+                            validSwaps: [],
+                            attackMode: 'ranged'
                         })
                         return false
                     }
@@ -379,7 +394,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         selectedPosition: pos,
                         validMoves: moves,
                         validAttacks: attacks,
-                        validSwaps: swaps
+                        validSwaps: swaps,
+                        attackMode: 'ranged'
                     })
                     return false
                 }
@@ -388,7 +404,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     selectedPosition: null,
                     validMoves: [],
                     validAttacks: [],
-                    validSwaps: []
+                    validSwaps: [],
+                    attackMode: 'ranged'
                 })
                 return false
             }
@@ -406,7 +423,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     selectedPosition: pos,
                     validMoves: moves,
                     validAttacks: attacks,
-                    validSwaps: swaps
+                    validSwaps: swaps,
+                    attackMode: 'ranged'
                 })
             }
 
@@ -535,12 +553,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
                 const newHistory = [...history, { gameState }]
 
+                const selectedCell = gameState.board[gameState.selectedPosition.row][gameState.selectedPosition.col]
+                const canChooseAttackMode = selectedCell && isPiece(selectedCell)
+                    ? PIECE_RULES[selectedCell.type].canChooseAttackMode
+                    : false
+                const shouldUseRangedAttack = isValidAttackTarget && (!canChooseAttackMode || attackMode === 'ranged')
                 const { newBoard, move, newNarcs } = makeMove(
                     gameState.board,
                     gameState.selectedPosition,
                     pos,
                     gameState.boardSize,
-                    isValidAttackTarget,
+                    shouldUseRangedAttack,
                     gameState.narcs
                 )
 
@@ -578,7 +601,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         narcs: newNarcs,
                         nightMode: getNightModeFromBoard(newBoard)
                     },
-                    history: newHistory
+                    history: newHistory,
+                    attackMode: 'ranged'
                 })
                 return true
             }
@@ -592,7 +616,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                             validMoves: [],
                             validAttacks: [],
                             validSwaps: []
-                        }
+                        },
+                        attackMode: 'ranged'
                     })
                     return false
                 }
@@ -611,7 +636,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         validMoves: moves,
                         validAttacks: attacks,
                         validSwaps: swaps
-                    }
+                    },
+                    attackMode: 'ranged'
                 })
                 return false
             }
@@ -623,7 +649,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     validMoves: [],
                     validAttacks: [],
                     validSwaps: []
-                }
+                },
+                attackMode: 'ranged'
             })
             return false
         }
@@ -644,7 +671,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     validMoves: moves,
                     validAttacks: attacks,
                     validSwaps: swaps
-                }
+                },
+                attackMode: 'ranged'
             })
         }
 
