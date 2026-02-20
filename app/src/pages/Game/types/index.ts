@@ -74,6 +74,7 @@ export interface Piece {
   hasMoved?: boolean
   isZombie?: boolean
   reviveCount?: number
+  frozenTurns?: number
   standingOnObstacle?: ObstacleType
 }
 
@@ -112,6 +113,8 @@ export interface Move {
   piece: Piece
   captured?: Piece
   isAttack?: boolean
+  isFreeze?: boolean
+  freezeTurns?: number
   terminatedByNarc?: boolean
 }
 

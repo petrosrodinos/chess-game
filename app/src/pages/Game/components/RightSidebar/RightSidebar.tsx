@@ -2,6 +2,7 @@ import type { Piece } from '../../types'
 import { PieceTypes, PlayerColors } from '../../types'
 import { PIECE_SYMBOLS, PIECE_RULES, PIECE_NAMES } from '../../constants'
 import { useGameStore } from '../../../../store/gameStore'
+import { getNecromancerKillTargets, getNecromancerFreezeTargets } from '../../utils'
 
 interface RightSidebarProps {
     onOpenZombieRevive?: () => void
@@ -10,7 +11,7 @@ interface RightSidebarProps {
 export const RightSidebar = ({
     onOpenZombieRevive,
 }: RightSidebarProps) => {
-    const { gameState, selectedPosition, validAttacks, attackMode, setAttackMode } = useGameStore()
+    const { gameState, selectedPosition, validAttacks, attackMode, necromancerActionMode, setAttackMode, setNecromancerActionMode } = useGameStore()
 
     const capturedPieces = gameState.capturedPieces
     // const moveHistory = isOnline && onlineMoveHistory
@@ -65,8 +66,20 @@ export const RightSidebar = ({
     const showAttackModeMenu = Boolean(
         selectedCell &&
         'color' in selectedCell &&
+        selectedCell.type !== PieceTypes.NECROMANCER &&
         PIECE_RULES[selectedCell.type].canChooseAttackMode &&
         currentValidAttacks.length > 0
+    )
+    const necromancerKillTargets = selectedCell && 'color' in selectedCell && selectedCell.type === PieceTypes.NECROMANCER && currentSelectedPosition
+        ? getNecromancerKillTargets(gameState.board, currentSelectedPosition, gameState.boardSize)
+        : []
+    const necromancerFreezeTargets = selectedCell && 'color' in selectedCell && selectedCell.type === PieceTypes.NECROMANCER && currentSelectedPosition
+        ? getNecromancerFreezeTargets(gameState.board, currentSelectedPosition, gameState.boardSize)
+        : []
+    const showNecromancerMenu = Boolean(
+        selectedCell &&
+        'color' in selectedCell &&
+        selectedCell.type === PieceTypes.NECROMANCER
     )
 
     return (
@@ -98,6 +111,51 @@ export const RightSidebar = ({
                             }`}
                         >
                             Capture and move to target
+                        </button>
+                    </div>
+                </div>
+            )}
+            {showNecromancerMenu && selectedCell && 'color' in selectedCell && (
+                <div className="mb-4 border border-stone-700 rounded-lg p-3 bg-stone-900/50">
+                    <h3 className="text-sm font-medium text-amber-200 mb-2">
+                        {PIECE_NAMES[selectedCell.type]} Action
+                    </h3>
+                    <div className="grid gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setNecromancerActionMode('move')}
+                            className={`text-xs rounded-md px-2 py-2 border transition-colors ${
+                                necromancerActionMode === 'move'
+                                    ? 'bg-sky-700 border-sky-500 text-sky-100'
+                                    : 'bg-stone-800 border-stone-600 text-stone-200 hover:bg-stone-700'
+                            }`}
+                        >
+                            Move
+                        </button>
+                        {necromancerKillTargets.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setNecromancerActionMode('kill')}
+                                className={`text-xs rounded-md px-2 py-2 border transition-colors ${
+                                    necromancerActionMode === 'kill'
+                                        ? 'bg-rose-700 border-rose-500 text-rose-100'
+                                        : 'bg-stone-800 border-stone-600 text-stone-200 hover:bg-stone-700'
+                                }`}
+                            >
+                                Kill (1-step attack)
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setNecromancerActionMode('freeze')}
+                            disabled={necromancerFreezeTargets.length === 0}
+                            className={`text-xs rounded-md px-2 py-2 border transition-colors ${
+                                necromancerActionMode === 'freeze'
+                                    ? 'bg-violet-700 border-violet-500 text-violet-100'
+                                    : 'bg-stone-800 border-stone-600 text-stone-200 hover:bg-stone-700'
+                            }`}
+                        >
+                            Freeze (ranged stun)
                         </button>
                     </div>
                 </div>

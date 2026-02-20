@@ -35,6 +35,13 @@ interface ZombieRevivePayload {
     target: Position
 }
 
+interface NecromancerFreezePayload {
+    code: string
+    playerName: string
+    target: Position
+    freezeTurns: number
+}
+
 export const useOnlineGame = () => {
     const [searchParams] = useSearchParams()
     const gameCode = searchParams.get('code')
@@ -210,6 +217,9 @@ export const useOnlineGame = () => {
         const handleNecromancerReviveStarted = (data: { playerName: string }) => {
             toast.info(`🧟 ${data.playerName} is reviving a piece.`, { autoClose: 4000 })
         }
+        const handleNecromancerFreeze = (data: NecromancerFreezePayload) => {
+            toast.info(`❄️ ${data.playerName} froze a piece for ${data.freezeTurns} turn(s).`, { autoClose: 4000 })
+        }
 
         on<GameSession>(SocketEvents.GAME_STATE, handleGameState)
         on<GameSession>(SocketEvents.GAME_UPDATE, handleGameUpdate)
@@ -220,6 +230,7 @@ export const useOnlineGame = () => {
         on<MysteryBoxTriggeredPayload>(SocketEvents.MYSTERY_BOX_TRIGGERED, handleMysteryBoxTriggeredByOpponent)
         on<MysteryBoxCompletePayload>(SocketEvents.MYSTERY_BOX_COMPLETE, handleMysteryBoxCompleteByOpponent)
         on<{ playerName: string }>(SocketEvents.NECROMANCER_REVIVE_STARTED, handleNecromancerReviveStarted)
+        on<NecromancerFreezePayload>(SocketEvents.NECROMANCER_FREEZE, handleNecromancerFreeze)
 
         emit(SocketEvents.GET_GAME, { code: gameCode, playerId: userId })
 
@@ -240,6 +251,7 @@ export const useOnlineGame = () => {
             off(SocketEvents.MYSTERY_BOX_TRIGGERED)
             off(SocketEvents.MYSTERY_BOX_COMPLETE)
             off(SocketEvents.NECROMANCER_REVIVE_STARTED)
+            off(SocketEvents.NECROMANCER_FREEZE)
         }
     }, [gameCode, isConnected, userId, emit, on, off, socket, setCurrentPlayerId, syncFromServer, setLoading, setError])
 
@@ -303,7 +315,7 @@ export const useOnlineGame = () => {
 
         const result = selectSquare(pos, true)
 
-        if (typeof result === 'object' && result.triggered) {
+        if (typeof result === 'object' && 'triggered' in result && result.triggered) {
             const myPlayer = getCurrentPlayer()
             const playerName = myPlayer?.name || 'Player'
             const currentGameState = getGameStateForSync()
@@ -341,6 +353,16 @@ export const useOnlineGame = () => {
                 toast.success(optionDescriptions[result.option], { autoClose: 5000 })
             }
             return
+        }
+        if (typeof result === 'object' && 'freezeApplied' in result && result.freezeApplied) {
+            const myPlayer = getCurrentPlayer()
+            const playerName = myPlayer?.name || 'Player'
+            emit(SocketEvents.NECROMANCER_FREEZE, {
+                code: gameCode,
+                playerName,
+                target: result.target,
+                freezeTurns: result.freezeTurns
+            })
         }
 
         if (!result) return

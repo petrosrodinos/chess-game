@@ -13,6 +13,7 @@ import rockSound from '../../assets/audio/rock.mp3'
 import gameStartSound from '../../assets/audio/game_start.mp3'
 import menuClickSound from '../../assets/audio/menu_click.mp3'
 import levelUpSound from '../../assets/audio/level-up.mp3'
+import stunSound from '../../assets/audio/stun.mp3'
 
 export const SoundEvents = {
   PIECE_MOVE: 'piece_move',
@@ -29,6 +30,7 @@ export const SoundEvents = {
   GAME_START: 'game_start',
   GAME_OVER: 'game_over',
   MENU_CLICK: 'menu_click',
+  STUN: 'stun',
 } as const
 
 export type SoundEvent = typeof SoundEvents[keyof typeof SoundEvents]
@@ -48,6 +50,7 @@ export const SOUND_FILES: Record<SoundEvent, string> = {
   [SoundEvents.GAME_START]: gameStartSound,
   [SoundEvents.GAME_OVER]: levelUpSound,
   [SoundEvents.MENU_CLICK]: menuClickSound,
+  [SoundEvents.STUN]: stunSound,
 } as const
 
 export const PIECE_MOVE_SOUNDS: Partial<Record<PieceType, SoundEvent>> = {} as const

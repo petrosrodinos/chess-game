@@ -25,6 +25,10 @@ import {
     getRevivablePieces,
     getPhaseForOption,
     removeMysteryBoxFromBoard,
+    getNecromancerKillTargets,
+    getNecromancerFreezeTargets,
+    applyNecromancerFreeze,
+    decrementFrozenTurnsForPlayer,
     isSelectableObstacle,
     isPositionInList,
     isObstacleSwapPlacementAllowed,
@@ -45,7 +49,14 @@ interface MysteryBoxTriggerResult {
     optionName: string | null
 }
 
+interface NecromancerFreezeResult {
+    freezeApplied: true
+    freezeTurns: number
+    target: Position
+}
+
 type AttackMode = 'ranged' | 'capture'
+type NecromancerActionMode = 'move' | 'kill' | 'freeze'
 
 interface GameStore {
     gameState: GameState
@@ -63,7 +74,9 @@ interface GameStore {
     validAttacks: Position[]
     validSwaps: SwapTarget[]
     attackMode: AttackMode
+    necromancerActionMode: NecromancerActionMode
     setAttackMode: (mode: AttackMode) => void
+    setNecromancerActionMode: (mode: NecromancerActionMode) => void
     reviveZombie: (payload: { necromancerPosition: Position; revivePiece: Piece; target: Position }) => boolean
 
     gameSession: GameSession | null
@@ -74,7 +87,7 @@ interface GameStore {
     canUndo: () => boolean
     canHint: () => boolean
 
-    selectSquare: (pos: Position, isOnline?: boolean) => MysteryBoxTriggerResult | boolean
+    selectSquare: (pos: Position, isOnline?: boolean) => MysteryBoxTriggerResult | NecromancerFreezeResult | boolean
     devModeSelectSquare: (pos: Position) => void
     resetGame: (newBoardSizeKey?: BoardSizeKey) => void
     startGameTimer: () => void
@@ -158,6 +171,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     validAttacks: [],
     validSwaps: [],
     attackMode: 'ranged',
+    necromancerActionMode: 'move',
 
     gameSession: null,
     currentPlayerId: null,
@@ -165,6 +179,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     error: null,
     setAttackMode: (mode: AttackMode) => {
         set({ attackMode: mode })
+    },
+    setNecromancerActionMode: (mode: NecromancerActionMode) => {
+        set({ necromancerActionMode: mode })
     },
 
     canUndo: () => {
@@ -177,8 +194,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return gameState.currentPlayer === PlayerColors.WHITE && !gameState.gameOver && !botThinking
     },
 
-    selectSquare: (pos: Position, isOnline = false): MysteryBoxTriggerResult | boolean => {
-        const { gameState, botEnabled, history, mysteryBoxState, gameSession, currentPlayerId, selectedPosition, validMoves, validAttacks, validSwaps, attackMode } = get()
+    selectSquare: (pos: Position, isOnline = false): MysteryBoxTriggerResult | NecromancerFreezeResult | boolean => {
+        const { gameState, botEnabled, history, mysteryBoxState, gameSession, currentPlayerId, selectedPosition, validMoves, validAttacks, validSwaps, attackMode, necromancerActionMode } = get()
+        const getSelectionData = (board: GameState['board'], boardSize: GameState['boardSize'], piecePos: Position) => {
+            const selectedCell = board[piecePos.row][piecePos.col]
+            if (!selectedCell || !isPiece(selectedCell)) {
+                return { moves: [], attacks: [], swaps: [] as SwapTarget[] }
+            }
+            const moves = getValidMoves(board, piecePos, boardSize)
+            const attacks = getValidAttacks(board, piecePos, boardSize)
+            const swaps: SwapTarget[] = selectedCell.type === PieceTypes.WARLOCK
+                ? getValidSwapTargets(board, piecePos).map(s => ({
+                    position: s.position,
+                    swapType: s.swapType
+                }))
+                : []
+            if (selectedCell.type !== PieceTypes.NECROMANCER) {
+                return { moves, attacks, swaps }
+            }
+            const closeTargets = getNecromancerKillTargets(board, piecePos, boardSize)
+            const freezeTargets = getNecromancerFreezeTargets(board, piecePos, boardSize)
+            const mergedAttacks = [...closeTargets, ...freezeTargets].filter((target, index, arr) =>
+                index === arr.findIndex(item => item.row === target.row && item.col === target.col)
+            )
+            return { moves, attacks: mergedAttacks, swaps }
+        }
 
         if (isOnline) {
             if (!gameSession || !gameState) return false
@@ -318,23 +358,92 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     }
 
                     const selectedCell = board[selectedPosition.row][selectedPosition.col]
-                    const canChooseAttackMode = selectedCell && isPiece(selectedCell)
-                        ? PIECE_RULES[selectedCell.type].canChooseAttackMode
-                        : false
-                    const shouldUseRangedAttack = isValidAttackTarget && (!canChooseAttackMode || attackMode === 'ranged')
+                    if (!selectedCell || !isPiece(selectedCell)) return false
+
+                    const closeTargets = selectedCell.type === PieceTypes.NECROMANCER
+                        ? getNecromancerKillTargets(board, selectedPosition, boardSize)
+                        : []
+                    const freezeTargets = selectedCell.type === PieceTypes.NECROMANCER
+                        ? getNecromancerFreezeTargets(board, selectedPosition, boardSize)
+                        : []
+                    const isCloseKillTarget = closeTargets.some(target => target.row === pos.row && target.col === pos.col)
+                    const isFreezeTarget = freezeTargets.some(target => target.row === pos.row && target.col === pos.col)
+                    const isNecromancerMoveCapture = selectedCell.type === PieceTypes.NECROMANCER &&
+                        necromancerActionMode === 'move' &&
+                        isCloseKillTarget
+
+                    if (selectedCell.type === PieceTypes.NECROMANCER && necromancerActionMode === 'freeze') {
+                        if (!isFreezeTarget) return false
+                        const { newBoard, move } = applyNecromancerFreeze(board, selectedPosition, pos, boardSize)
+                        const nextPlayer = gameState.currentPlayer === PlayerColors.WHITE
+                            ? PlayerColors.BLACK
+                            : PlayerColors.WHITE
+                        const boardAfterTurn = decrementFrozenTurnsForPlayer(newBoard, gameState.currentPlayer)
+                        const { gameOver, winner } = checkGameOver(boardAfterTurn, nextPlayer, boardSize)
+                        toast.info(`❄️ Freeze applied for ${move.freezeTurns} turn(s).`, { autoClose: 3000 })
+                        set({
+                            gameState: {
+                                ...gameState,
+                                board: boardAfterTurn,
+                                currentPlayer: nextPlayer,
+                                selectedPosition: null,
+                                validMoves: [],
+                                validAttacks: [],
+                                validSwaps: [],
+                                moveHistory: [...gameState.moveHistory, move],
+                                capturedPieces: gameState.capturedPieces,
+                                lastMove: move,
+                                gameOver,
+                                winner,
+                                nightMode: getNightModeFromBoard(boardAfterTurn)
+                            },
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: [],
+                            attackMode: 'ranged',
+                            necromancerActionMode: 'move'
+                        })
+                        return {
+                            freezeApplied: true,
+                            freezeTurns: move.freezeTurns || 0,
+                            target: pos
+                        }
+                    }
+
+                    if (selectedCell.type === PieceTypes.NECROMANCER && necromancerActionMode === 'kill' && !isCloseKillTarget) {
+                        return false
+                    }
+                    if (
+                        selectedCell.type === PieceTypes.NECROMANCER &&
+                        necromancerActionMode === 'move' &&
+                        !isValidMoveTarget &&
+                        !isCloseKillTarget
+                    ) {
+                        return false
+                    }
+
+                    const canChooseAttackMode = PIECE_RULES[selectedCell.type].canChooseAttackMode
+                    const shouldUseRangedAttack = selectedCell.type === PieceTypes.NECROMANCER
+                        ? (necromancerActionMode === 'kill' && isCloseKillTarget)
+                        : (isValidAttackTarget && (!canChooseAttackMode || attackMode === 'ranged'))
+                    const shouldUseMoveCapture = selectedCell.type === PieceTypes.NECROMANCER
+                        ? isNecromancerMoveCapture
+                        : (isValidAttackTarget && canChooseAttackMode && attackMode === 'capture')
                     const { newBoard, move, newNarcs } = makeMove(
                         board,
                         selectedPosition,
                         pos,
                         boardSize,
-                        shouldUseRangedAttack,
+                        shouldUseRangedAttack && !shouldUseMoveCapture,
                         gameState.narcs
                     )
+                    const boardAfterTurn = decrementFrozenTurnsForPlayer(newBoard, gameState.currentPlayer)
 
                     const nextPlayer = gameState.currentPlayer === PlayerColors.WHITE
                         ? PlayerColors.BLACK
                         : PlayerColors.WHITE
-                    const { gameOver, winner } = checkGameOver(newBoard, nextPlayer, boardSize)
+                    const { gameOver, winner } = checkGameOver(boardAfterTurn, nextPlayer, boardSize)
 
                     const newCaptured = { ...gameState.capturedPieces }
                     if (move.captured) {
@@ -348,7 +457,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     set({
                         gameState: {
                             ...gameState,
-                            board: newBoard,
+                            board: boardAfterTurn,
                             currentPlayer: nextPlayer,
                             selectedPosition: null,
                             validMoves: [],
@@ -360,13 +469,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
                             gameOver,
                             winner,
                             narcs: newNarcs,
-                            nightMode: getNightModeFromBoard(newBoard)
+                            nightMode: getNightModeFromBoard(boardAfterTurn)
                         },
                         selectedPosition: null,
                         validMoves: [],
                         validAttacks: [],
                         validSwaps: [],
-                        attackMode: 'ranged'
+                        attackMode: 'ranged',
+                        necromancerActionMode: 'move'
                     })
 
                     return true
@@ -379,24 +489,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
                             validMoves: [],
                             validAttacks: [],
                             validSwaps: [],
-                            attackMode: 'ranged'
+                            attackMode: 'ranged',
+                            necromancerActionMode: 'move'
                         })
                         return false
                     }
-                    const moves = getValidMoves(board, pos, boardSize)
-                    const attacks = getValidAttacks(board, pos, boardSize)
-                    const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
-                        ? getValidSwapTargets(board, pos).map(s => ({
-                            position: s.position,
-                            swapType: s.swapType
-                        }))
-                        : []
+                    if ((cell.frozenTurns ?? 0) > 0) return false
+                    const { moves, attacks, swaps } = getSelectionData(board, boardSize, pos)
                     set({
                         selectedPosition: pos,
                         validMoves: moves,
                         validAttacks: attacks,
                         validSwaps: swaps,
-                        attackMode: 'ranged'
+                        attackMode: 'ranged',
+                        necromancerActionMode: 'move'
                     })
                     return false
                 }
@@ -406,26 +512,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     validMoves: [],
                     validAttacks: [],
                     validSwaps: [],
-                    attackMode: 'ranged'
+                    attackMode: 'ranged',
+                    necromancerActionMode: 'move'
                 })
                 return false
             }
 
             if (cell && isPiece(cell) && cell.color === myPlayer.color) {
-                const moves = getValidMoves(board, pos, boardSize)
-                const attacks = getValidAttacks(board, pos, boardSize)
-                const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
-                    ? getValidSwapTargets(board, pos).map(s => ({
-                        position: s.position,
-                        swapType: s.swapType
-                    }))
-                    : []
+                if ((cell.frozenTurns ?? 0) > 0) return false
+                const { moves, attacks, swaps } = getSelectionData(board, boardSize, pos)
                 set({
                     selectedPosition: pos,
                     validMoves: moves,
                     validAttacks: attacks,
                     validSwaps: swaps,
-                    attackMode: 'ranged'
+                    attackMode: 'ranged',
+                    necromancerActionMode: 'move'
                 })
             }
 
@@ -555,18 +657,82 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 const newHistory = [...history, { gameState }]
 
                 const selectedCell = gameState.board[gameState.selectedPosition.row][gameState.selectedPosition.col]
-                const canChooseAttackMode = selectedCell && isPiece(selectedCell)
-                    ? PIECE_RULES[selectedCell.type].canChooseAttackMode
-                    : false
-                const shouldUseRangedAttack = isValidAttackTarget && (!canChooseAttackMode || attackMode === 'ranged')
+                if (!selectedCell || !isPiece(selectedCell)) return false
+
+                const closeTargets = selectedCell.type === PieceTypes.NECROMANCER
+                    ? getNecromancerKillTargets(gameState.board, gameState.selectedPosition, gameState.boardSize)
+                    : []
+                const freezeTargets = selectedCell.type === PieceTypes.NECROMANCER
+                    ? getNecromancerFreezeTargets(gameState.board, gameState.selectedPosition, gameState.boardSize)
+                    : []
+                const isCloseKillTarget = closeTargets.some(target => target.row === pos.row && target.col === pos.col)
+                const isFreezeTarget = freezeTargets.some(target => target.row === pos.row && target.col === pos.col)
+                const isNecromancerMoveCapture = selectedCell.type === PieceTypes.NECROMANCER &&
+                    necromancerActionMode === 'move' &&
+                    isCloseKillTarget
+
+                if (selectedCell.type === PieceTypes.NECROMANCER && necromancerActionMode === 'freeze') {
+                    if (!isFreezeTarget) return false
+                    const { newBoard, move } = applyNecromancerFreeze(gameState.board, gameState.selectedPosition, pos, gameState.boardSize)
+                    let nextPlayer = gameState.currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
+                    if (move.terminatedByNarc) {
+                        nextPlayer = gameState.currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
+                    }
+                    const boardAfterTurn = decrementFrozenTurnsForPlayer(newBoard, gameState.currentPlayer)
+                    const { gameOver, winner } = checkGameOver(boardAfterTurn, nextPlayer, gameState.boardSize)
+                    toast.info(`❄️ Freeze applied for ${move.freezeTurns} turn(s).`, { autoClose: 3000 })
+                    set({
+                        gameState: {
+                            ...gameState,
+                            board: boardAfterTurn,
+                            currentPlayer: nextPlayer,
+                            selectedPosition: null,
+                            validMoves: [],
+                            validAttacks: [],
+                            validSwaps: [],
+                            moveHistory: [...gameState.moveHistory, move],
+                            capturedPieces: gameState.capturedPieces,
+                            lastMove: move,
+                            gameOver,
+                            winner,
+                            narcs: gameState.narcs,
+                            nightMode: getNightModeFromBoard(boardAfterTurn)
+                        },
+                        history: newHistory,
+                        attackMode: 'ranged',
+                        necromancerActionMode: 'move'
+                    })
+                    return true
+                }
+
+                if (selectedCell.type === PieceTypes.NECROMANCER && necromancerActionMode === 'kill' && !isCloseKillTarget) {
+                    return false
+                }
+                if (
+                    selectedCell.type === PieceTypes.NECROMANCER &&
+                    necromancerActionMode === 'move' &&
+                    !isValidMoveTarget &&
+                    !isCloseKillTarget
+                ) {
+                    return false
+                }
+
+                const canChooseAttackMode = PIECE_RULES[selectedCell.type].canChooseAttackMode
+                const shouldUseRangedAttack = selectedCell.type === PieceTypes.NECROMANCER
+                    ? (necromancerActionMode === 'kill' && isCloseKillTarget)
+                    : (isValidAttackTarget && (!canChooseAttackMode || attackMode === 'ranged'))
+                const shouldUseMoveCapture = selectedCell.type === PieceTypes.NECROMANCER
+                    ? isNecromancerMoveCapture
+                    : (isValidAttackTarget && canChooseAttackMode && attackMode === 'capture')
                 const { newBoard, move, newNarcs } = makeMove(
                     gameState.board,
                     gameState.selectedPosition,
                     pos,
                     gameState.boardSize,
-                    shouldUseRangedAttack,
+                    shouldUseRangedAttack && !shouldUseMoveCapture,
                     gameState.narcs
                 )
+                const boardAfterTurn = decrementFrozenTurnsForPlayer(newBoard, gameState.currentPlayer)
 
                 let nextPlayer = gameState.currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
 
@@ -574,7 +740,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     nextPlayer = gameState.currentPlayer === PlayerColors.WHITE ? PlayerColors.BLACK : PlayerColors.WHITE
                 }
 
-                const { gameOver, winner } = checkGameOver(newBoard, nextPlayer, gameState.boardSize)
+                const { gameOver, winner } = checkGameOver(boardAfterTurn, nextPlayer, gameState.boardSize)
 
                 const newCaptured = { ...gameState.capturedPieces }
                 if (move.captured) {
@@ -588,7 +754,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 set({
                     gameState: {
                         ...gameState,
-                        board: newBoard,
+                        board: boardAfterTurn,
                         currentPlayer: nextPlayer,
                         selectedPosition: null,
                         validMoves: [],
@@ -600,10 +766,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         gameOver,
                         winner,
                         narcs: newNarcs,
-                        nightMode: getNightModeFromBoard(newBoard)
+                        nightMode: getNightModeFromBoard(boardAfterTurn)
                     },
                     history: newHistory,
-                    attackMode: 'ranged'
+                    attackMode: 'ranged',
+                    necromancerActionMode: 'move'
                 })
                 return true
             }
@@ -618,18 +785,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
                             validAttacks: [],
                             validSwaps: []
                         },
-                        attackMode: 'ranged'
+                        attackMode: 'ranged',
+                        necromancerActionMode: 'move'
                     })
                     return false
                 }
-                const moves = getValidMoves(gameState.board, pos, gameState.boardSize)
-                const attacks = getValidAttacks(gameState.board, pos, gameState.boardSize)
-                const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
-                    ? getValidSwapTargets(gameState.board, pos).map(s => ({
-                        position: s.position,
-                        swapType: s.swapType
-                    }))
-                    : []
+                if ((cell.frozenTurns ?? 0) > 0) {
+                    toast.warning('❄️ This piece is frozen and cannot act.', { autoClose: 2500 })
+                    return false
+                }
+                const { moves, attacks, swaps } = getSelectionData(gameState.board, gameState.boardSize, pos)
                 set({
                     gameState: {
                         ...gameState,
@@ -638,7 +803,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                         validAttacks: attacks,
                         validSwaps: swaps
                     },
-                    attackMode: 'ranged'
+                    attackMode: 'ranged',
+                    necromancerActionMode: 'move'
                 })
                 return false
             }
@@ -651,20 +817,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     validAttacks: [],
                     validSwaps: []
                 },
-                attackMode: 'ranged'
+                attackMode: 'ranged',
+                necromancerActionMode: 'move'
             })
             return false
         }
 
         if (cell && isPiece(cell) && cell.color === gameState.currentPlayer) {
-            const moves = getValidMoves(gameState.board, pos, gameState.boardSize)
-            const attacks = getValidAttacks(gameState.board, pos, gameState.boardSize)
-            const swaps: SwapTarget[] = cell.type === PieceTypes.WARLOCK
-                ? getValidSwapTargets(gameState.board, pos).map(s => ({
-                    position: s.position,
-                    swapType: s.swapType
-                }))
-                : []
+            if ((cell.frozenTurns ?? 0) > 0) {
+                toast.warning('❄️ This piece is frozen and cannot act.', { autoClose: 2500 })
+                return false
+            }
+            const { moves, attacks, swaps } = getSelectionData(gameState.board, gameState.boardSize, pos)
             set({
                 gameState: {
                     ...gameState,
@@ -673,7 +837,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     validAttacks: attacks,
                     validSwaps: swaps
                 },
-                attackMode: 'ranged'
+                attackMode: 'ranged',
+                necromancerActionMode: 'move'
             })
         }
 
@@ -746,7 +911,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             history: [],
             botThinking: false,
             hintMove: null,
-            mysteryBoxState: getInitialMysteryBoxState()
+            mysteryBoxState: getInitialMysteryBoxState(),
+            attackMode: 'ranged',
+            necromancerActionMode: 'move'
         })
     },
 
@@ -783,7 +950,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     validAttacks: [],
                     validSwaps: []
                 },
-                history: newHistory
+                history: newHistory,
+                attackMode: 'ranged',
+                necromancerActionMode: 'move'
             })
         }
     },
@@ -821,9 +990,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
             botMove.isAttack || false,
             gameState.narcs
         )
+        const boardAfterTurn = decrementFrozenTurnsForPlayer(newBoard, gameState.currentPlayer)
 
         const nextPlayer = PlayerColors.WHITE
-        const { gameOver, winner } = checkGameOver(newBoard, nextPlayer, gameState.boardSize)
+        const { gameOver, winner } = checkGameOver(boardAfterTurn, nextPlayer, gameState.boardSize)
 
         const newCaptured = { ...gameState.capturedPieces }
         if (move.captured) {
@@ -837,7 +1007,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({
             gameState: {
                 ...gameState,
-                board: newBoard,
+                board: boardAfterTurn,
                 currentPlayer: nextPlayer,
                 selectedPosition: null,
                 validMoves: [],
@@ -848,9 +1018,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 gameOver,
                 winner,
                 narcs: newNarcs,
-                nightMode: getNightModeFromBoard(newBoard)
+                nightMode: getNightModeFromBoard(boardAfterTurn)
             },
-            botThinking: false
+            botThinking: false,
+            attackMode: 'ranged',
+            necromancerActionMode: 'move'
         })
     },
 
@@ -1260,7 +1432,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             selectedPosition: null,
             validMoves: [],
             validAttacks: [],
-            validSwaps: []
+            validSwaps: [],
+            attackMode: 'ranged',
+            necromancerActionMode: 'move'
         })
     },
 
@@ -1282,7 +1456,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             validMoves: [],
             validAttacks: [],
             validSwaps: [],
-            mysteryBoxState: getInitialMysteryBoxState()
+            mysteryBoxState: getInitialMysteryBoxState(),
+            attackMode: 'ranged',
+            necromancerActionMode: 'move'
         })
     },
     reviveZombie: (payload) => {
@@ -1335,7 +1511,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 winner,
                 nightMode: getNightModeFromBoard(newBoard)
             },
-            history: newHistory
+            history: newHistory,
+            attackMode: 'ranged',
+            necromancerActionMode: 'move'
         })
 
         return true

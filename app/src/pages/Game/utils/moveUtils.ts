@@ -426,6 +426,7 @@ const getPatternMoves = (board: Board, pos: Position, piece: Piece, boardSize: B
 export const getPieceMoves = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
   const cell = board[pos.row][pos.col]
   if (!cell || !isPiece(cell)) return []
+  if (isPieceFrozen(cell)) return []
 
   const rules = PIECE_RULES[cell.type]
   let moves: Position[] = []
@@ -452,6 +453,83 @@ const isInAttackRange = (from: Position, to: Position, attackRange: number): boo
   const dx = Math.abs(to.row - from.row)
   const dy = Math.abs(to.col - from.col)
   return Math.max(dx, dy) <= attackRange
+}
+
+const isPieceFrozen = (piece: Piece): boolean => {
+  return (piece.frozenTurns ?? 0) > 0
+}
+
+const getNecromancerFreezeRange = (piece: Piece): number => {
+  const reviveCount = piece.reviveCount ?? 0
+  return Math.max(2, 8 - reviveCount * 2)
+}
+
+export const getNecromancerKillTargets = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
+  const cell = board[pos.row][pos.col]
+  if (!cell || !isPiece(cell) || cell.type !== PieceTypes.NECROMANCER || isPieceFrozen(cell)) return []
+
+  const targets: Position[] = []
+  for (let rowOff = -1; rowOff <= 1; rowOff++) {
+    for (let colOff = -1; colOff <= 1; colOff++) {
+      if (rowOff === 0 && colOff === 0) continue
+      const row = pos.row + rowOff
+      const col = pos.col + colOff
+      if (!isInBounds(row, col, boardSize)) continue
+      const targetCell = board[row][col]
+      if (!targetCell || !isPiece(targetCell)) continue
+      if (targetCell.color === cell.color) continue
+      targets.push({ row, col })
+    }
+  }
+  return targets
+}
+
+const isFreezePathClear = (
+  board: Board,
+  from: Position,
+  to: Position,
+  boardSize: BoardSize
+): boolean => {
+  const rowDiff = to.row - from.row
+  const colDiff = to.col - from.col
+  const rowDir = rowDiff === 0 ? 0 : rowDiff > 0 ? 1 : -1
+  const colDir = colDiff === 0 ? 0 : colDiff > 0 ? 1 : -1
+  const isAligned = rowDiff === 0 || colDiff === 0 || Math.abs(rowDiff) === Math.abs(colDiff)
+  if (!isAligned) return false
+
+  let row = from.row + rowDir
+  let col = from.col + colDir
+  while (row !== to.row || col !== to.col) {
+    if (!isInBounds(row, col, boardSize)) return false
+    const cell = board[row][col]
+    if (cell && isObstacle(cell) && cell.type === ObstacleTypes.TREE) return false
+    row += rowDir
+    col += colDir
+  }
+  return true
+}
+
+export const getNecromancerFreezeTargets = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
+  const cell = board[pos.row][pos.col]
+  if (!cell || !isPiece(cell) || cell.type !== PieceTypes.NECROMANCER || isPieceFrozen(cell)) return []
+
+  const freezeRange = getNecromancerFreezeRange(cell)
+  const targets: Position[] = []
+
+  for (let row = 0; row < boardSize.rows; row++) {
+    for (let col = 0; col < boardSize.cols; col++) {
+      if (row === pos.row && col === pos.col) continue
+      const targetCell = board[row][col]
+      if (!targetCell || !isPiece(targetCell)) continue
+      if (targetCell.color === cell.color) continue
+      if ((targetCell.frozenTurns ?? 0) > 0) continue
+      if (!isInAttackRange(pos, { row, col }, freezeRange)) continue
+      if (!isFreezePathClear(board, pos, { row, col }, boardSize)) continue
+      targets.push({ row, col })
+    }
+  }
+
+  return targets
 }
 
 const CHARIOT_GAMMA_OFFSETS: [number, number][] = [
@@ -646,6 +724,7 @@ const isAttackPathClear = (
 export const getValidAttacks = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
   const cell = board[pos.row][pos.col]
   if (!cell || !isPiece(cell)) return []
+  if (isPieceFrozen(cell)) return []
 
   const rules = PIECE_RULES[cell.type]
   const attackRange = getAdjustedAttackRange(cell, rules.attackRange)
@@ -685,6 +764,10 @@ export const getValidAttacks = (board: Board, pos: Position, boardSize: BoardSiz
 
   if (cell.type === PieceTypes.PALADIN) {
     return getPaladinValidAttacks(board, pos, boardSize, cell)
+  }
+
+  if (cell.type === PieceTypes.NECROMANCER) {
+    return getNecromancerKillTargets(board, pos, boardSize)
   }
 
   if (cell.type === PieceTypes.WARLOCK) {
@@ -866,6 +949,70 @@ export const makeMove = (
   return { newBoard, move, newNarcs }
 }
 
+export const applyNecromancerFreeze = (
+  board: Board,
+  from: Position,
+  to: Position,
+  boardSize: BoardSize
+): { newBoard: Board; move: Move } => {
+  const newBoard = cloneBoard(board)
+  const casterCell = newBoard[from.row][from.col]
+  const targetCell = newBoard[to.row][to.col]
+
+  if (!casterCell || !isPiece(casterCell) || casterCell.type !== PieceTypes.NECROMANCER) {
+    throw new Error('Freeze requires a Necromancer caster')
+  }
+  if (isPieceFrozen(casterCell)) {
+    throw new Error('Frozen Necromancer cannot freeze')
+  }
+  if (!targetCell || !isPiece(targetCell) || targetCell.color === casterCell.color) {
+    throw new Error('Freeze target must be an enemy piece')
+  }
+  if ((targetCell.frozenTurns ?? 0) > 0) {
+    throw new Error('Cannot freeze an already frozen target')
+  }
+
+  const validTargets = getNecromancerFreezeTargets(board, from, boardSize)
+  const canFreeze = validTargets.some(target => target.row === to.row && target.col === to.col)
+  if (!canFreeze) {
+    throw new Error('Target is outside freeze range or line of sight')
+  }
+
+  const usedRange = Math.max(Math.abs(to.row - from.row), Math.abs(to.col - from.col))
+  const freezeTurns = Math.max(1, Math.floor(usedRange / 2))
+  const updatedTarget: Piece = { ...targetCell, frozenTurns: freezeTurns }
+  newBoard[to.row][to.col] = updatedTarget
+
+  const move: Move = {
+    from,
+    to,
+    piece: { ...casterCell },
+    captured: undefined,
+    isFreeze: true,
+    freezeTurns
+  }
+
+  return { newBoard, move }
+}
+
+export const decrementFrozenTurnsForPlayer = (board: Board, color: PlayerColor): Board => {
+  const updatedBoard = cloneBoard(board)
+  for (let row = 0; row < updatedBoard.length; row++) {
+    for (let col = 0; col < updatedBoard[row].length; col++) {
+      const cell = updatedBoard[row][col]
+      if (!cell || !isPiece(cell)) continue
+      if (cell.color !== color) continue
+      const frozenTurns = cell.frozenTurns ?? 0
+      if (frozenTurns <= 0) continue
+      const nextFrozenTurns = frozenTurns - 1
+      updatedBoard[row][col] = nextFrozenTurns > 0
+        ? { ...cell, frozenTurns: nextFrozenTurns }
+        : { ...cell, frozenTurns: undefined }
+    }
+  }
+  return updatedBoard
+}
+
 export const hasLegalMoves = (board: Board, color: PlayerColor, boardSize: BoardSize): boolean => {
   for (let row = 0; row < board.length; row++) {
     for (let col = 0; col < board[0].length; col++) {
@@ -876,6 +1023,11 @@ export const hasLegalMoves = (board: Board, color: PlayerColor, boardSize: Board
 
         const attacks = getValidAttacks(board, { row, col }, boardSize)
         if (attacks.length > 0) return true
+
+        if (cell.type === PieceTypes.NECROMANCER) {
+          const freezeTargets = getNecromancerFreezeTargets(board, { row, col }, boardSize)
+          if (freezeTargets.length > 0) return true
+        }
       }
     }
   }
