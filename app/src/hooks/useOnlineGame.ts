@@ -11,6 +11,7 @@ import { SoundEvents } from '../config/audio'
 import { getMoveSound, isValidSoundEvent } from '../utils/sound.utils'
 import type { GameSession } from '../features/game/interfaces'
 import type { Position, Piece } from '../pages/Game/types'
+import { PIECE_NAMES, PIECE_SYMBOLS } from '../pages/Game/constants'
 
 interface MysteryBoxTriggeredPayload {
     code: string
@@ -34,6 +35,13 @@ interface ZombieRevivePayload {
     target: Position
 }
 
+interface NecromancerFreezePayload {
+    code: string
+    playerName: string
+    target: Position
+    freezeTurns: number
+}
+
 export const useOnlineGame = () => {
     const [searchParams] = useSearchParams()
     const gameCode = searchParams.get('code')
@@ -43,6 +51,7 @@ export const useOnlineGame = () => {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const gameCodeRef = useRef(gameCode)
     const resetRef = useRef<() => void>(() => { })
+    const lastCaptureToastKeyRef = useRef<string | null>(null)
 
     const {
         gameSession,
@@ -120,6 +129,20 @@ export const useOnlineGame = () => {
             if (isValidSoundEvent(soundKey)) {
                 SoundManager.play(soundKey)
             }
+            const lastMove = session.gameState?.lastMove
+            if (lastMove?.captured) {
+                const toastKey = `${lastMove.from.row},${lastMove.from.col}-${lastMove.to.row},${lastMove.to.col}-${lastMove.piece.id}-${lastMove.captured.id}`
+                if (lastCaptureToastKeyRef.current !== toastKey) {
+                    lastCaptureToastKeyRef.current = toastKey
+                    const victimIcon = PIECE_SYMBOLS[lastMove.captured.color][lastMove.captured.type]
+                    const killerIcon = PIECE_SYMBOLS[lastMove.piece.color][lastMove.piece.type]
+                    if (lastMove.terminatedByNarc) {
+                        toast.info(`${killerIcon} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 })
+                    } else {
+                        toast.info(`${killerIcon} ${PIECE_NAMES[lastMove.piece.type]} killed ${victimIcon} ${PIECE_NAMES[lastMove.captured.type]}`, { autoClose: 2500 })
+                    }
+                }
+            }
         }
 
         const handlePlayerJoined = (data: GameSession & { joinedPlayerId?: string }) => {
@@ -168,7 +191,7 @@ export const useOnlineGame = () => {
 
             const opponentOptionDescriptions: Record<number, string> = {
                 1: `🔄 ${data.playerName} can swap two of their pieces!`,
-                2: `⚔️ ${data.playerName} will sacrifice a Hoplite to revive one of your captured pieces!`,
+                2: `⚔️ ${data.playerName} will sacrifice a Hoplite to revive one of their captured pieces!`,
                 3: `🎲 ${data.playerName} rolled ${data.diceRoll}! They can swap ${data.diceRoll} obstacle(s) with empty tiles!`
             }
 
@@ -194,6 +217,9 @@ export const useOnlineGame = () => {
         const handleNecromancerReviveStarted = (data: { playerName: string }) => {
             toast.info(`🧟 ${data.playerName} is reviving a piece.`, { autoClose: 4000 })
         }
+        const handleNecromancerFreeze = (data: NecromancerFreezePayload) => {
+            toast.info(`❄️ ${data.playerName} froze a piece for ${data.freezeTurns} turn(s).`, { autoClose: 4000 })
+        }
 
         on<GameSession>(SocketEvents.GAME_STATE, handleGameState)
         on<GameSession>(SocketEvents.GAME_UPDATE, handleGameUpdate)
@@ -204,6 +230,7 @@ export const useOnlineGame = () => {
         on<MysteryBoxTriggeredPayload>(SocketEvents.MYSTERY_BOX_TRIGGERED, handleMysteryBoxTriggeredByOpponent)
         on<MysteryBoxCompletePayload>(SocketEvents.MYSTERY_BOX_COMPLETE, handleMysteryBoxCompleteByOpponent)
         on<{ playerName: string }>(SocketEvents.NECROMANCER_REVIVE_STARTED, handleNecromancerReviveStarted)
+        on<NecromancerFreezePayload>(SocketEvents.NECROMANCER_FREEZE, handleNecromancerFreeze)
 
         emit(SocketEvents.GET_GAME, { code: gameCode, playerId: userId })
 
@@ -224,6 +251,7 @@ export const useOnlineGame = () => {
             off(SocketEvents.MYSTERY_BOX_TRIGGERED)
             off(SocketEvents.MYSTERY_BOX_COMPLETE)
             off(SocketEvents.NECROMANCER_REVIVE_STARTED)
+            off(SocketEvents.NECROMANCER_FREEZE)
         }
     }, [gameCode, isConnected, userId, emit, on, off, socket, setCurrentPlayerId, syncFromServer, setLoading, setError])
 
@@ -287,7 +315,7 @@ export const useOnlineGame = () => {
 
         const result = selectSquare(pos, true)
 
-        if (typeof result === 'object' && result.triggered) {
+        if (typeof result === 'object' && 'triggered' in result && result.triggered) {
             const myPlayer = getCurrentPlayer()
             const playerName = myPlayer?.name || 'Player'
             const currentGameState = getGameStateForSync()
@@ -316,7 +344,7 @@ export const useOnlineGame = () => {
 
             const optionDescriptions: Record<number, string> = {
                 1: '✨ Swap positions of any two of your pieces!',
-                2: '⚔️ Sacrifice a Hoplite to revive an opponent piece as your own!',
+                2: '⚔️ Sacrifice a Hoplite to revive one of your captured pieces!',
                 3: `🎲 Roll: ${result.diceRoll}! Swap ${result.diceRoll} obstacle(s) with empty tiles!`
             }
 
@@ -325,6 +353,16 @@ export const useOnlineGame = () => {
                 toast.success(optionDescriptions[result.option], { autoClose: 5000 })
             }
             return
+        }
+        if (typeof result === 'object' && 'freezeApplied' in result && result.freezeApplied) {
+            const myPlayer = getCurrentPlayer()
+            const playerName = myPlayer?.name || 'Player'
+            emit(SocketEvents.NECROMANCER_FREEZE, {
+                code: gameCode,
+                playerName,
+                target: result.target,
+                freezeTurns: result.freezeTurns
+            })
         }
 
         if (!result) return

@@ -22,12 +22,14 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     move: [3, 2],
     attackRange: 1,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: false,
     points: 3
   },
   [PieceTypes.RAM_TOWER]: {
     move: MovePatterns.CROSS,
     attackRange: 5,
     canPass: [ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: true,
     points: 20
   },
   [PieceTypes.CHARIOT]: {
@@ -35,6 +37,7 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     attackRange: 4,
     canPass: [ObstacleTypes.RIVER, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
+    canChooseAttackMode: true,
     points: 16,
     zombiePoints: 13
   },
@@ -43,39 +46,46 @@ export const PIECE_RULES: Record<string, PieceRules> = {
     attackRange: 0,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
+    canChooseAttackMode: false,
     points: 12,
     zombiePoints: 9
   },
   [PieceTypes.PALADIN]: {
-    move: MovePatterns.SIDEWAYS,
+    move: MovePatterns.DIAGONAL,
     attackRange: 3,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.RIVER, ObstacleTypes.CANYON, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: true,
+    maxRiverWidth: 1,
     points: 15,
     zombiePoints: 12
   },
   [PieceTypes.WARLOCK]: {
     move: [[2, 0], [0, 2], [2, 2]],
-    attackRange: 2,
+    attackRange: 1,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE, ObstacleTypes.MYSTERY_BOX],
     canJumpPieces: true,
+    canChooseAttackMode: false,
     points: 11
   },
   [PieceTypes.MONARCH]: {
     move: MovePatterns.ANY,
     attackRange: 1,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: true,
     points: 210
   },
   [PieceTypes.DUCHESS]: {
     move: MovePatterns.ANY,
     attackRange: 9,
     canPass: [ObstacleTypes.RIVER, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: true,
     points: 27
   },
   [PieceTypes.NECROMANCER]: {
     move: [[1, 0], [0, 1], [1, 1]],
-    attackRange: 8,
+    attackRange: 1,
     canPass: [ObstacleTypes.CAVE, ObstacleTypes.LAKE, ObstacleTypes.MYSTERY_BOX],
+    canChooseAttackMode: false,
     points: 13
   }
 } as const
@@ -154,7 +164,7 @@ export const RULES_FIGURE_SECTION_TITLES: Record<PieceType, string> = {
 export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
   [PieceTypes.HOPLITE]: [
     'Moves 3 steps forward on the first move; afterwards, moves 2 steps.',
-    'Can shoot 1 step sideways (either direction).',
+    'Can attack 1 step to front, left, right, and front diagonals (left/right).',
     'Can pass through caves.',
     'Cannot pass through river, lake, or canyon.'
   ],
@@ -166,7 +176,7 @@ export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
     'Moves in corner patterns: 2-1, 1-2, 2-2, 3-1, 1-3 steps.',
     'Can pass over other figures on its path.',
     'Units killed by Chariot cannot be revived until Chariot is destroyed.',
-    'Attacks: Gamma-shaped (L) at 3–4 block radius and ranged orthogonal up to 4 steps.',
+    'Attacks: Gamma-shaped (L) up to 4 steps; trees can be shot over, all other obstacles block.',
     'Can pass through rivers (up to 2 steps wide).',
     'Cannot pass through lake, canyon, cave.'
   ],
@@ -178,13 +188,14 @@ export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
     'Cannot pass through lake.'
   ],
   [PieceTypes.PALADIN]: [
-    'Moves sideways any number of steps (blocked by obstacles).',
-    'Ranged attacks sideways up to 3 blocks.',
+    'Moves diagonal as many steps as possible.',
+    'Shoots up to 3 steps (diagonal).',
     'Can pass through river (1 step wide), cave, canyon.',
     'Cannot pass through lake.'
   ],
   [PieceTypes.WARLOCK]: [
     'Moves in 2-step corner patterns.',
+    'Can attack 1 step diagonally.',
     'Can pass over figures in its path.',
     'Can swap positions with any Hoplite and the Monarch.',
     'Can pass through lake and cave.',
@@ -203,10 +214,9 @@ export const FIGURE_RULES_BULLETS: Record<PieceType, readonly string[]> = {
     'Cannot pass through lake, canyon, cave.'
   ],
   [PieceTypes.NECROMANCER]: [
-    'Moves in any direction.',
+    'Moves 1 step in any direction.',
     'Shoots 1 step in any direction.',
     'Can revive Ram, Chariot, Bomber, Paladin if Monarch, Duchess, and Warlock are in original positions.',
-    'Can shoot freeze stuns within 8 steps (range decreases by 2 for each revival).',
     'Revived figures cannot use long-range attacks. Bomber attacks normally as Zompie.',
     'Can pass through lake and cave.',
     'Cannot pass through river or canyon.'

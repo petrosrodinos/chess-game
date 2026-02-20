@@ -61,6 +61,8 @@ export interface PieceRules {
   attackRange: number
   canPass: ObstacleType[]
   canJumpPieces?: boolean
+  canChooseAttackMode: boolean
+  maxRiverWidth?: number
   points: number
   zombiePoints?: number
 }
@@ -72,6 +74,8 @@ export interface Piece {
   hasMoved?: boolean
   isZombie?: boolean
   reviveCount?: number
+  frozenTurns?: number
+  standingOnObstacle?: ObstacleType
 }
 
 export interface Obstacle {
@@ -109,6 +113,8 @@ export interface Move {
   piece: Piece
   captured?: Piece
   isAttack?: boolean
+  isFreeze?: boolean
+  freezeTurns?: number
   terminatedByNarc?: boolean
 }
 

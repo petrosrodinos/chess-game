@@ -13,6 +13,10 @@ export {
   getPieceMoves,
   getValidMoves,
   getValidAttacks,
+  getNecromancerKillTargets,
+  getNecromancerFreezeTargets,
+  applyNecromancerFreeze,
+  decrementFrozenTurnsForPlayer,
   makeMove,
   hasLegalMoves,
   findMonarch,
@@ -49,6 +53,7 @@ export {
   getStartingPositionForPieceType,
   getZombieRevivePieces,
   isZombieReviveTargetEmpty,
+  getZombieRevivePlacementTarget,
   getZombieReviveOpenState,
   getZombieReviveConfirmState,
   getZombieReviveStatusMessage
@@ -75,5 +80,6 @@ export {
   getPhaseForOption,
   getMysteryBoxOptionName,
   removeMysteryBoxFromBoard,
-  isPositionInList
+  isPositionInList,
+  isObstacleSwapPlacementAllowed
 } from './mysteryBoxUtils'

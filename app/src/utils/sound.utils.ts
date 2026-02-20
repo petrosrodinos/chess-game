@@ -5,6 +5,7 @@ import { SoundEvents, PIECE_CAPTURE_SOUNDS, DEFAULT_CAPTURE_SOUND } from '../con
 
 export const getMoveSound = (move: Move): SoundEvent => {
   if (move.terminatedByNarc) return SoundEvents.BOMB_EXPLODE
+  if (move.isFreeze) return SoundEvents.STUN
 
   if (move.captured) {
     const pieceType = move.piece.type as PieceType

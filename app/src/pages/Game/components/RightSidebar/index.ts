@@ -1,1 +1,1 @@
-export { RightSidebar } from './RightSidebar'
+export { RightSidebar, CapturedPieces } from './RightSidebar'

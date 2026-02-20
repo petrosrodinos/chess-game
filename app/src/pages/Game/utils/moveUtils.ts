@@ -6,12 +6,24 @@ import { createNarcsForBomber, checkNarcNetTrigger, removeNarcsForBomber } from 
 import { getAdjustedAttackRange } from './zombieUtils'
 
 const canPassObstacle = (pieceType: PieceType, obstacleType: ObstacleType): boolean => {
+  if (pieceType === PieceTypes.DUCHESS && obstacleType === ObstacleTypes.TREE) {
+    return false
+  }
   const rules = PIECE_RULES[pieceType]
   return rules.canPass.includes(obstacleType)
 }
 
 const canStopOnObstacle = (obstacleType: ObstacleType): boolean => {
   return obstacleType === ObstacleTypes.CAVE || obstacleType === ObstacleTypes.MYSTERY_BOX
+}
+
+const getMaxRiverWidth = (pieceType: PieceType): number => {
+  const rules = PIECE_RULES[pieceType]
+  return rules.maxRiverWidth ?? Infinity
+}
+
+const canTeleportThroughCave = (pieceType: PieceType): boolean => {
+  return pieceType === PieceTypes.BOMBER || pieceType === PieceTypes.HOPLITE
 }
 
 const getAdjacentEmptyPositions = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
@@ -56,6 +68,7 @@ const isPathClear = (
   boardSize: BoardSize
 ): boolean => {
   const rules = PIECE_RULES[piece.type]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   if (rules.canJumpPieces) {
     const targetObstacle = getObstacleType(board, to.row, to.col)
@@ -70,6 +83,7 @@ const isPathClear = (
 
   let row = from.row + rowDir
   let col = from.col + colDir
+  let riverRun = 0
 
   while (row !== to.row || col !== to.col) {
     if (!isInBounds(row, col, boardSize)) return false
@@ -77,7 +91,17 @@ const isPathClear = (
     const cell = board[row][col]
     if (cell) {
       if (isPiece(cell)) return false
-      if (isObstacle(cell) && !canPassObstacle(piece.type, cell.type)) return false
+      if (isObstacle(cell)) {
+        if (!canPassObstacle(piece.type, cell.type)) return false
+        if (cell.type === ObstacleTypes.RIVER) {
+          if (riverRun >= maxRiver) return false
+          riverRun++
+        } else {
+          riverRun = 0
+        }
+      }
+    } else {
+      riverRun = 0
     }
 
     row += rowDir
@@ -110,7 +134,11 @@ const getHopliteMoves = (board: Board, pos: Position, piece: Piece, boardSize: B
           if (canStopOnObstacle(targetCell.type)) {
             const obstaclePos = { row: newRow, col: pos.col }
             if (targetCell.type === ObstacleTypes.CAVE) {
-              if (canEnterCave(board, obstaclePos, boardSize)) {
+              if (canTeleportThroughCave(piece.type)) {
+                if (canEnterCave(board, obstaclePos, boardSize)) {
+                  moves.push(obstaclePos)
+                }
+              } else {
                 moves.push(obstaclePos)
               }
             } else if (targetCell.type === ObstacleTypes.MYSTERY_BOX) {
@@ -133,10 +161,12 @@ const getHopliteMoves = (board: Board, pos: Position, piece: Piece, boardSize: B
 const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   for (const [rowDir, colDir] of directions) {
     let row = pos.row + rowDir
     let col = pos.col + colDir
+    let riverRun = 0
 
     while (isInBounds(row, col, boardSize)) {
       const cell = board[row][col]
@@ -145,10 +175,20 @@ const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: Boa
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
+            if (cell.type === ObstacleTypes.RIVER) {
+              if (riverRun >= maxRiver) break
+              riverRun++
+            } else {
+              riverRun = 0
+            }
             if (canStopOnObstacle(cell.type)) {
               const obstaclePos = { row, col }
               if (cell.type === ObstacleTypes.CAVE) {
-                if (canEnterCave(board, obstaclePos, boardSize)) {
+                if (canTeleportThroughCave(piece.type)) {
+                  if (canEnterCave(board, obstaclePos, boardSize)) {
+                    moves.push(obstaclePos)
+                  }
+                } else {
                   moves.push(obstaclePos)
                 }
               } else if (cell.type === ObstacleTypes.MYSTERY_BOX) {
@@ -162,6 +202,8 @@ const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: Boa
             break
           }
         }
+      } else {
+        riverRun = 0
       }
 
       moves.push({ row, col })
@@ -176,10 +218,12 @@ const getCrossMoves = (board: Board, pos: Position, piece: Piece, boardSize: Boa
 const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   const directions = [[0, -1], [0, 1]]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   for (const [rowDir, colDir] of directions) {
     let row = pos.row + rowDir
     let col = pos.col + colDir
+    let riverRun = 0
 
     while (isInBounds(row, col, boardSize)) {
       const cell = board[row][col]
@@ -188,10 +232,20 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
+            if (cell.type === ObstacleTypes.RIVER) {
+              if (riverRun >= maxRiver) break
+              riverRun++
+            } else {
+              riverRun = 0
+            }
             if (canStopOnObstacle(cell.type)) {
               const obstaclePos = { row, col }
               if (cell.type === ObstacleTypes.CAVE) {
-                if (canEnterCave(board, obstaclePos, boardSize)) {
+                if (canTeleportThroughCave(piece.type)) {
+                  if (canEnterCave(board, obstaclePos, boardSize)) {
+                    moves.push(obstaclePos)
+                  }
+                } else {
                   moves.push(obstaclePos)
                 }
               } else if (cell.type === ObstacleTypes.MYSTERY_BOX) {
@@ -205,6 +259,8 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
             break
           }
         }
+      } else {
+        riverRun = 0
       }
 
       moves.push({ row, col })
@@ -219,10 +275,12 @@ const getSidewaysMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
 const getDiagonalMoves = (board: Board, pos: Position, piece: Piece, boardSize: BoardSize): Position[] => {
   const moves: Position[] = []
   const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   for (const [rowDir, colDir] of directions) {
     let row = pos.row + rowDir
     let col = pos.col + colDir
+    let riverRun = 0
 
     while (isInBounds(row, col, boardSize)) {
       const cell = board[row][col]
@@ -231,10 +289,20 @@ const getDiagonalMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
+            if (cell.type === ObstacleTypes.RIVER) {
+              if (riverRun >= maxRiver) break
+              riverRun++
+            } else {
+              riverRun = 0
+            }
             if (canStopOnObstacle(cell.type)) {
               const obstaclePos = { row, col }
               if (cell.type === ObstacleTypes.CAVE) {
-                if (canEnterCave(board, obstaclePos, boardSize)) {
+                if (canTeleportThroughCave(piece.type)) {
+                  if (canEnterCave(board, obstaclePos, boardSize)) {
+                    moves.push(obstaclePos)
+                  }
+                } else {
                   moves.push(obstaclePos)
                 }
               } else if (cell.type === ObstacleTypes.MYSTERY_BOX) {
@@ -248,6 +316,8 @@ const getDiagonalMoves = (board: Board, pos: Position, piece: Piece, boardSize: 
             break
           }
         }
+      } else {
+        riverRun = 0
       }
 
       moves.push({ row, col })
@@ -266,8 +336,10 @@ const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSi
     [0, -1], [0, 1],
     [1, -1], [1, 0], [1, 1]
   ]
+  const maxRiver = getMaxRiverWidth(piece.type)
 
   for (const [rowDir, colDir] of directions) {
+    let riverRun = 0
     for (let step = 1; step <= maxSteps; step++) {
       const row = pos.row + (rowDir * step)
       const col = pos.col + (colDir * step)
@@ -280,10 +352,20 @@ const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSi
         if (isPiece(cell)) break
         if (isObstacle(cell)) {
           if (canPassObstacle(piece.type, cell.type)) {
+            if (cell.type === ObstacleTypes.RIVER) {
+              if (riverRun >= maxRiver) break
+              riverRun++
+            } else {
+              riverRun = 0
+            }
             if (canStopOnObstacle(cell.type)) {
               const obstaclePos = { row, col }
               if (cell.type === ObstacleTypes.CAVE) {
-                if (canEnterCave(board, obstaclePos, boardSize)) {
+                if (canTeleportThroughCave(piece.type)) {
+                  if (canEnterCave(board, obstaclePos, boardSize)) {
+                    moves.push(obstaclePos)
+                  }
+                } else {
                   moves.push(obstaclePos)
                 }
               } else if (cell.type === ObstacleTypes.MYSTERY_BOX) {
@@ -295,6 +377,8 @@ const getAnyDirectionMoves = (board: Board, pos: Position, piece: Piece, boardSi
             break
           }
         }
+      } else {
+        riverRun = 0
       }
 
       moves.push({ row, col })
@@ -342,6 +426,7 @@ const getPatternMoves = (board: Board, pos: Position, piece: Piece, boardSize: B
 export const getPieceMoves = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
   const cell = board[pos.row][pos.col]
   if (!cell || !isPiece(cell)) return []
+  if (isPieceFrozen(cell)) return []
 
   const rules = PIECE_RULES[cell.type]
   let moves: Position[] = []
@@ -370,11 +455,86 @@ const isInAttackRange = (from: Position, to: Position, attackRange: number): boo
   return Math.max(dx, dy) <= attackRange
 }
 
+const isPieceFrozen = (piece: Piece): boolean => {
+  return (piece.frozenTurns ?? 0) > 0
+}
+
+const getNecromancerFreezeRange = (piece: Piece): number => {
+  const reviveCount = piece.reviveCount ?? 0
+  return Math.max(2, 8 - reviveCount * 2)
+}
+
+export const getNecromancerKillTargets = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
+  const cell = board[pos.row][pos.col]
+  if (!cell || !isPiece(cell) || cell.type !== PieceTypes.NECROMANCER || isPieceFrozen(cell)) return []
+
+  const targets: Position[] = []
+  for (let rowOff = -1; rowOff <= 1; rowOff++) {
+    for (let colOff = -1; colOff <= 1; colOff++) {
+      if (rowOff === 0 && colOff === 0) continue
+      const row = pos.row + rowOff
+      const col = pos.col + colOff
+      if (!isInBounds(row, col, boardSize)) continue
+      const targetCell = board[row][col]
+      if (!targetCell || !isPiece(targetCell)) continue
+      if (targetCell.color === cell.color) continue
+      targets.push({ row, col })
+    }
+  }
+  return targets
+}
+
+const isFreezePathClear = (
+  board: Board,
+  from: Position,
+  to: Position,
+  boardSize: BoardSize
+): boolean => {
+  const rowDiff = to.row - from.row
+  const colDiff = to.col - from.col
+  const rowDir = rowDiff === 0 ? 0 : rowDiff > 0 ? 1 : -1
+  const colDir = colDiff === 0 ? 0 : colDiff > 0 ? 1 : -1
+  const isAligned = rowDiff === 0 || colDiff === 0 || Math.abs(rowDiff) === Math.abs(colDiff)
+  if (!isAligned) return false
+
+  let row = from.row + rowDir
+  let col = from.col + colDir
+  while (row !== to.row || col !== to.col) {
+    if (!isInBounds(row, col, boardSize)) return false
+    const cell = board[row][col]
+    if (cell && isObstacle(cell) && cell.type === ObstacleTypes.TREE) return false
+    row += rowDir
+    col += colDir
+  }
+  return true
+}
+
+export const getNecromancerFreezeTargets = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
+  const cell = board[pos.row][pos.col]
+  if (!cell || !isPiece(cell) || cell.type !== PieceTypes.NECROMANCER || isPieceFrozen(cell)) return []
+
+  const freezeRange = getNecromancerFreezeRange(cell)
+  const targets: Position[] = []
+
+  for (let row = 0; row < boardSize.rows; row++) {
+    for (let col = 0; col < boardSize.cols; col++) {
+      if (row === pos.row && col === pos.col) continue
+      const targetCell = board[row][col]
+      if (!targetCell || !isPiece(targetCell)) continue
+      if (targetCell.color === cell.color) continue
+      if ((targetCell.frozenTurns ?? 0) > 0) continue
+      if (!isInAttackRange(pos, { row, col }, freezeRange)) continue
+      if (!isFreezePathClear(board, pos, { row, col }, boardSize)) continue
+      targets.push({ row, col })
+    }
+  }
+
+  return targets
+}
+
 const CHARIOT_GAMMA_OFFSETS: [number, number][] = [
   [3, 1], [3, -1], [-3, 1], [-3, -1],
-  [1, 3], [1, -3], [-1, 3], [-1, -3],
-  [4, 1], [4, -1], [-4, 1], [-4, -1],
-  [1, 4], [1, -4], [-1, 4], [-1, -4]
+  [1, 3], [1, -3], [-1, 3], [-1, -3]
 ]
 
 const isChariotGammaAttack = (from: Position, to: Position): boolean => {
@@ -383,12 +543,75 @@ const isChariotGammaAttack = (from: Position, to: Position): boolean => {
   return CHARIOT_GAMMA_OFFSETS.some(([or, oc]) => dr === or && dc === oc)
 }
 
-const isChariotRangedAttack = (from: Position, to: Position, maxRange: number): boolean => {
+const isChariotGammaPathOptionClear = (
+  board: Board,
+  from: Position,
+  firstRowDir: number,
+  firstColDir: number,
+  firstSteps: number,
+  secondRowDir: number,
+  secondColDir: number,
+  secondSteps: number,
+  boardSize: BoardSize
+): boolean => {
+  let row = from.row
+  let col = from.col
+  const traversed: Position[] = []
+
+  for (let i = 0; i < firstSteps; i++) {
+    row += firstRowDir
+    col += firstColDir
+    if (!isInBounds(row, col, boardSize)) return false
+    traversed.push({ row, col })
+  }
+
+  for (let i = 0; i < secondSteps; i++) {
+    row += secondRowDir
+    col += secondColDir
+    if (!isInBounds(row, col, boardSize)) return false
+    traversed.push({ row, col })
+  }
+
+  for (let i = 0; i < traversed.length - 1; i++) {
+    const cell = board[traversed[i].row][traversed[i].col]
+    if (!cell) continue
+    if (isPiece(cell)) return false
+    if (isObstacle(cell) && cell.type !== ObstacleTypes.TREE) return false
+  }
+
+  return true
+}
+
+const isChariotGammaPathClear = (board: Board, from: Position, to: Position, boardSize: BoardSize): boolean => {
   const dr = to.row - from.row
   const dc = to.col - from.col
-  if (dr !== 0 && dc !== 0) return false
-  const dist = Math.abs(dr) + Math.abs(dc)
-  return dist > 0 && dist <= maxRange
+  const absDr = Math.abs(dr)
+  const absDc = Math.abs(dc)
+
+  if ((absDr !== 3 && absDr !== 4 && absDr !== 1) || (absDc !== 3 && absDc !== 4 && absDc !== 1)) {
+    return false
+  }
+  if (absDr !== 1 && absDc !== 1) {
+    return false
+  }
+  if (Math.max(absDr, absDc) > 4) {
+    return false
+  }
+
+  const rowSign = Math.sign(dr)
+  const colSign = Math.sign(dc)
+
+  if (absDr > absDc) {
+    return (
+      isChariotGammaPathOptionClear(board, from, rowSign, 0, absDr, 0, colSign, absDc, boardSize) ||
+      isChariotGammaPathOptionClear(board, from, 0, colSign, absDc, rowSign, 0, absDr, boardSize)
+    )
+  }
+
+  return (
+    isChariotGammaPathOptionClear(board, from, 0, colSign, absDc, rowSign, 0, absDr, boardSize) ||
+    isChariotGammaPathOptionClear(board, from, rowSign, 0, absDr, 0, colSign, absDc, boardSize)
+  )
 }
 
 const getRamTowerValidAttacks = (board: Board, pos: Position, boardSize: BoardSize, cell: Piece): Position[] => {
@@ -410,8 +633,6 @@ const getRamTowerValidAttacks = (board: Board, pos: Position, boardSize: BoardSi
       const dist = Math.abs(dr) + Math.abs(dc)
       if (dist > attackRange) continue
 
-      if (!isAttackPathClear(board, pos, { row, col }, cell, boardSize)) continue
-
       attacks.push({ row, col })
     }
   }
@@ -421,19 +642,28 @@ const getRamTowerValidAttacks = (board: Board, pos: Position, boardSize: BoardSi
 const getPaladinValidAttacks = (board: Board, pos: Position, boardSize: BoardSize, cell: Piece): Position[] => {
   const attacks: Position[] = []
   const attackRange = getAdjustedAttackRange(cell, 3)
+  const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
 
-  for (let col = 0; col < boardSize.cols; col++) {
-    if (col === pos.col) continue
-    if (Math.abs(col - pos.col) > attackRange) continue
+  for (const [rowDir, colDir] of directions) {
+    for (let step = 1; step <= attackRange; step++) {
+      const row = pos.row + rowDir * step
+      const col = pos.col + colDir * step
+      if (!isInBounds(row, col, boardSize)) break
 
-    const target = { row: pos.row, col }
-    const targetCell = board[pos.row][col]
-    if (!targetCell || !isPiece(targetCell)) continue
-    if (targetCell.color === cell.color) continue
+      const targetCell = board[row][col]
+      if (!targetCell) continue
+      if (isObstacle(targetCell)) {
+        if (!canPassObstacle(cell.type, targetCell.type)) break
+        continue
+      }
+      if (targetCell.color === cell.color) break
 
-    if (!isAttackPathClear(board, pos, target, cell, boardSize)) continue
+      const target = { row, col }
+      if (!isAttackPathClear(board, pos, target, cell, boardSize)) break
 
-    attacks.push(target)
+      attacks.push(target)
+      break
+    }
   }
   return attacks
 }
@@ -452,11 +682,9 @@ const getChariotValidAttacks = (board: Board, pos: Position, boardSize: BoardSiz
 
       const target = { row, col }
       const isGamma = isChariotGammaAttack(pos, target)
-      const isRanged = isChariotRangedAttack(pos, target, attackRange)
+      const inRange = Math.max(Math.abs(row - pos.row), Math.abs(col - pos.col)) <= attackRange
 
-      if (isGamma) {
-        attacks.push(target)
-      } else if (isRanged && isAttackPathClear(board, pos, target, cell, boardSize)) {
+      if (isGamma && inRange && isChariotGammaPathClear(board, pos, target, boardSize)) {
         attacks.push(target)
       }
     }
@@ -468,7 +696,7 @@ const isAttackPathClear = (
   board: Board,
   from: Position,
   to: Position,
-  _piece: Piece,
+  piece: Piece,
   boardSize: BoardSize
 ): boolean => {
   const rowDir = to.row === from.row ? 0 : (to.row > from.row ? 1 : -1)
@@ -483,13 +711,7 @@ const isAttackPathClear = (
     const cell = board[row][col]
     if (cell) {
       if (isPiece(cell)) return false
-      if (isObstacle(cell)) {
-        if (cell.type === ObstacleTypes.TREE ||
-          cell.type === ObstacleTypes.ROCK ||
-          cell.type === ObstacleTypes.CANYON) {
-          return false
-        }
-      }
+      if (isObstacle(cell) && !canPassObstacle(piece.type, cell.type)) return false
     }
 
     row += rowDir
@@ -502,6 +724,7 @@ const isAttackPathClear = (
 export const getValidAttacks = (board: Board, pos: Position, boardSize: BoardSize): Position[] => {
   const cell = board[pos.row][pos.col]
   if (!cell || !isPiece(cell)) return []
+  if (isPieceFrozen(cell)) return []
 
   const rules = PIECE_RULES[cell.type]
   const attackRange = getAdjustedAttackRange(cell, rules.attackRange)
@@ -514,13 +737,22 @@ export const getValidAttacks = (board: Board, pos: Position, boardSize: BoardSiz
   }
 
   if (cell.type === PieceTypes.HOPLITE) {
-    for (const colOff of [-1, 1]) {
-      const newCol = pos.col + colOff
-      if (!isInBounds(pos.row, newCol, boardSize)) continue
+    const forwardDirection = cell.color === PlayerColors.WHITE ? -1 : 1
+    const directions = [
+      [forwardDirection, -1],
+      [forwardDirection, 0],
+      [forwardDirection, 1],
+      [0, -1],
+      [0, 1]
+    ]
+    for (const [rowOff, colOff] of directions) {
+      const row = pos.row + rowOff
+      const col = pos.col + colOff
+      if (!isInBounds(row, col, boardSize)) continue
 
-      const targetCell = board[pos.row][newCol]
+      const targetCell = board[row][col]
       if (targetCell && isPiece(targetCell) && targetCell.color !== cell.color) {
-        attacks.push({ row: pos.row, col: newCol })
+        attacks.push({ row, col })
       }
     }
     return attacks
@@ -532,6 +764,25 @@ export const getValidAttacks = (board: Board, pos: Position, boardSize: BoardSiz
 
   if (cell.type === PieceTypes.PALADIN) {
     return getPaladinValidAttacks(board, pos, boardSize, cell)
+  }
+
+  if (cell.type === PieceTypes.NECROMANCER) {
+    return getNecromancerKillTargets(board, pos, boardSize)
+  }
+
+  if (cell.type === PieceTypes.WARLOCK) {
+    const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+    for (const [rowOff, colOff] of directions) {
+      const row = pos.row + rowOff
+      const col = pos.col + colOff
+      if (!isInBounds(row, col, boardSize)) continue
+
+      const targetCell = board[row][col]
+      if (targetCell && isPiece(targetCell) && targetCell.color !== cell.color) {
+        attacks.push({ row, col })
+      }
+    }
+    return attacks
   }
 
   for (let row = 0; row < boardSize.rows; row++) {
@@ -624,9 +875,13 @@ export const makeMove = (
   const piece = cell
   const targetCell = newBoard[to.row][to.col]
   const captured = targetCell && isPiece(targetCell) ? targetCell : undefined
+  const sourceObstacle = piece.standingOnObstacle
 
   let finalPosition = to
-  const isCaveDestination = targetCell && isObstacle(targetCell) && targetCell.type === ObstacleTypes.CAVE
+  const isCaveDestination = targetCell &&
+    isObstacle(targetCell) &&
+    targetCell.type === ObstacleTypes.CAVE &&
+    canTeleportThroughCave(piece.type)
 
   if (isCaveDestination && !isAttack) {
     const caveExit = getRandomCaveExit(newBoard, to, boardSize)
@@ -639,7 +894,7 @@ export const makeMove = (
   const triggeredNarcNet = checkNarcNetTrigger(board, boardSize, finalPosition, piece.color)
 
   if (triggeredNarcNet && !isAttack) {
-    newBoard[from.row][from.col] = null
+    newBoard[from.row][from.col] = sourceObstacle ? { type: sourceObstacle } : null
 
     const move: Move = {
       from,
@@ -667,12 +922,15 @@ export const makeMove = (
       newNarcs = removeNarcsForBomber(newNarcs, captured.id)
     }
   } else {
-    newBoard[finalPosition.row][finalPosition.col] = { ...piece, hasMoved: true }
-    newBoard[from.row][from.col] = null
-  }
-
-  if (!isAttack) {
-    newBoard[from.row][from.col] = null
+    const destinationCell = newBoard[finalPosition.row][finalPosition.col]
+    const destinationObstacle =
+      destinationCell && isObstacle(destinationCell) ? destinationCell.type : undefined
+    newBoard[finalPosition.row][finalPosition.col] = {
+      ...piece,
+      hasMoved: true,
+      standingOnObstacle: destinationObstacle
+    }
+    newBoard[from.row][from.col] = sourceObstacle ? { type: sourceObstacle } : null
   }
 
   if (piece.type === PieceTypes.BOMBER && !piece.isZombie && !isAttack) {
@@ -691,6 +949,70 @@ export const makeMove = (
   return { newBoard, move, newNarcs }
 }
 
+export const applyNecromancerFreeze = (
+  board: Board,
+  from: Position,
+  to: Position,
+  boardSize: BoardSize
+): { newBoard: Board; move: Move } => {
+  const newBoard = cloneBoard(board)
+  const casterCell = newBoard[from.row][from.col]
+  const targetCell = newBoard[to.row][to.col]
+
+  if (!casterCell || !isPiece(casterCell) || casterCell.type !== PieceTypes.NECROMANCER) {
+    throw new Error('Freeze requires a Necromancer caster')
+  }
+  if (isPieceFrozen(casterCell)) {
+    throw new Error('Frozen Necromancer cannot freeze')
+  }
+  if (!targetCell || !isPiece(targetCell) || targetCell.color === casterCell.color) {
+    throw new Error('Freeze target must be an enemy piece')
+  }
+  if ((targetCell.frozenTurns ?? 0) > 0) {
+    throw new Error('Cannot freeze an already frozen target')
+  }
+
+  const validTargets = getNecromancerFreezeTargets(board, from, boardSize)
+  const canFreeze = validTargets.some(target => target.row === to.row && target.col === to.col)
+  if (!canFreeze) {
+    throw new Error('Target is outside freeze range or line of sight')
+  }
+
+  const usedRange = Math.max(Math.abs(to.row - from.row), Math.abs(to.col - from.col))
+  const freezeTurns = Math.max(1, Math.floor(usedRange / 2))
+  const updatedTarget: Piece = { ...targetCell, frozenTurns: freezeTurns }
+  newBoard[to.row][to.col] = updatedTarget
+
+  const move: Move = {
+    from,
+    to,
+    piece: { ...casterCell },
+    captured: undefined,
+    isFreeze: true,
+    freezeTurns
+  }
+
+  return { newBoard, move }
+}
+
+export const decrementFrozenTurnsForPlayer = (board: Board, color: PlayerColor): Board => {
+  const updatedBoard = cloneBoard(board)
+  for (let row = 0; row < updatedBoard.length; row++) {
+    for (let col = 0; col < updatedBoard[row].length; col++) {
+      const cell = updatedBoard[row][col]
+      if (!cell || !isPiece(cell)) continue
+      if (cell.color !== color) continue
+      const frozenTurns = cell.frozenTurns ?? 0
+      if (frozenTurns <= 0) continue
+      const nextFrozenTurns = frozenTurns - 1
+      updatedBoard[row][col] = nextFrozenTurns > 0
+        ? { ...cell, frozenTurns: nextFrozenTurns }
+        : { ...cell, frozenTurns: undefined }
+    }
+  }
+  return updatedBoard
+}
+
 export const hasLegalMoves = (board: Board, color: PlayerColor, boardSize: BoardSize): boolean => {
   for (let row = 0; row < board.length; row++) {
     for (let col = 0; col < board[0].length; col++) {
@@ -701,6 +1023,11 @@ export const hasLegalMoves = (board: Board, color: PlayerColor, boardSize: Board
 
         const attacks = getValidAttacks(board, { row, col }, boardSize)
         if (attacks.length > 0) return true
+
+        if (cell.type === PieceTypes.NECROMANCER) {
+          const freezeTargets = getNecromancerFreezeTargets(board, { row, col }, boardSize)
+          if (freezeTargets.length > 0) return true
+        }
       }
     }
   }
