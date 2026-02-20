@@ -4,6 +4,100 @@ import { PIECE_SYMBOLS, PIECE_RULES, PIECE_NAMES } from '../../constants'
 import { useGameStore } from '../../../../store/gameStore'
 import { getNecromancerKillTargets, getNecromancerFreezeTargets } from '../../utils'
 
+const PIECE_ORDER = [
+    PieceTypes.MONARCH,
+    PieceTypes.DUCHESS,
+    PieceTypes.RAM_TOWER,
+    PieceTypes.CHARIOT,
+    PieceTypes.PALADIN,
+    PieceTypes.NECROMANCER,
+    PieceTypes.WARLOCK,
+    PieceTypes.BOMBER,
+    PieceTypes.HOPLITE
+] as const
+
+interface CapturedPiecesContentProps {
+    capturedPieces: { white: Piece[]; black: Piece[] }
+    currentPlayer: string
+    onOpenZombieRevive?: () => void
+}
+
+const sortedCapturedPieces = (pieces: Piece[]) =>
+    [...pieces].sort((a, b) => {
+        const aIndex = PIECE_ORDER.indexOf(a.type as typeof PIECE_ORDER[number])
+        const bIndex = PIECE_ORDER.indexOf(b.type as typeof PIECE_ORDER[number])
+        return aIndex - bIndex
+    })
+
+const getTotalPointsForPieces = (pieces: Piece[]) =>
+    pieces.reduce((total, piece) => {
+        const rules = PIECE_RULES[piece.type]
+        return total + (piece.isZombie && rules.zombiePoints ? rules.zombiePoints : rules.points)
+    }, 0)
+
+export const CapturedPieces = ({ onOpenZombieRevive }: { onOpenZombieRevive?: () => void }) => {
+    const { gameState } = useGameStore()
+    return (
+        <div className="bg-stone-800/80 backdrop-blur rounded-xl p-4 border border-stone-700 w-full">
+            <h3 className="text-sm font-medium text-amber-200 mb-2">Captured Pieces</h3>
+            <CapturedPiecesContent
+                capturedPieces={gameState.capturedPieces}
+                currentPlayer={gameState.currentPlayer}
+                onOpenZombieRevive={onOpenZombieRevive}
+            />
+        </div>
+    )
+}
+
+const CapturedPiecesContent = ({
+    capturedPieces,
+    currentPlayer,
+    onOpenZombieRevive
+}: CapturedPiecesContentProps) => (
+    <div className="space-y-2">
+        <div>
+            <div className="flex items-center gap-1 mb-1">
+                <span className="text-xs text-stone-400">White ({getTotalPointsForPieces(capturedPieces.white)}pts):</span>
+            </div>
+            <button
+                type="button"
+                onClick={currentPlayer === PlayerColors.WHITE ? onOpenZombieRevive : undefined}
+                className={`flex flex-wrap gap-0.5 min-h-[28px] w-full text-left ${
+                    currentPlayer === PlayerColors.WHITE && onOpenZombieRevive
+                        ? 'hover:bg-stone-700/50 rounded-md p-1 -m-1'
+                        : ''
+                }`}
+            >
+                {sortedCapturedPieces(capturedPieces.white).map((piece, i) => (
+                    <span key={`w-${i}`} className="text-lg">
+                        {PIECE_SYMBOLS[piece.color][piece.type]}
+                    </span>
+                ))}
+            </button>
+        </div>
+        <div>
+            <div className="flex items-center gap-1 mb-1">
+                <span className="text-xs text-stone-400">Black ({getTotalPointsForPieces(capturedPieces.black)}pts):</span>
+            </div>
+            <button
+                type="button"
+                onClick={currentPlayer === PlayerColors.BLACK ? onOpenZombieRevive : undefined}
+                className={`flex flex-wrap gap-0.5 min-h-[28px] w-full text-left ${
+                    currentPlayer === PlayerColors.BLACK && onOpenZombieRevive
+                        ? 'hover:bg-stone-700/50 rounded-md p-1 -m-1'
+                        : ''
+                }`}
+            >
+                {sortedCapturedPieces(capturedPieces.black).map((piece, i) => (
+                    <span key={`b-${i}`} className="text-lg">
+                        {PIECE_SYMBOLS[piece.color][piece.type]}
+                    </span>
+                ))}
+            </button>
+        </div>
+    </div>
+)
+
 interface RightSidebarProps {
     onOpenZombieRevive?: () => void
 }
@@ -32,33 +126,6 @@ export const RightSidebar = ({
     //     return `${piece}${from}${action}${to}`
     // }
 
-    const pieceOrder = [
-        PieceTypes.MONARCH,
-        PieceTypes.DUCHESS,
-        PieceTypes.RAM_TOWER,
-        PieceTypes.CHARIOT,
-        PieceTypes.PALADIN,
-        PieceTypes.NECROMANCER,
-        PieceTypes.WARLOCK,
-        PieceTypes.BOMBER,
-        PieceTypes.HOPLITE
-    ] as const
-
-    const sortedCaptured = (pieces: Piece[]) => {
-        return [...pieces].sort((a, b) => {
-            const aIndex = pieceOrder.indexOf(a.type as typeof pieceOrder[number])
-            const bIndex = pieceOrder.indexOf(b.type as typeof pieceOrder[number])
-            return aIndex - bIndex
-        })
-    }
-
-    const getTotalPoints = (pieces: Piece[]) => {
-        return pieces.reduce((total, piece) => {
-            const rules = PIECE_RULES[piece.type]
-            return total + (piece.isZombie && rules.zombiePoints ? rules.zombiePoints : rules.points)
-        }, 0)
-    }
-
     const reviveSectionColor = gameState.currentPlayer
     const currentSelectedPosition = gameState.selectedPosition ?? selectedPosition
     const currentValidAttacks = gameState.selectedPosition ? gameState.validAttacks : validAttacks
@@ -83,7 +150,7 @@ export const RightSidebar = ({
     )
 
     return (
-        <div className="bg-stone-800/80 backdrop-blur rounded-xl p-4 border border-stone-700 w-64">
+        <div className="bg-stone-800/80 backdrop-blur rounded-xl p-4 border border-stone-700 w-full lg:w-64">
             {showAttackModeMenu && selectedCell && 'color' in selectedCell && (
                 <div className="mb-4 border border-stone-700 rounded-lg p-3 bg-stone-900/50">
                     <h3 className="text-sm font-medium text-amber-200 mb-2">
@@ -160,50 +227,13 @@ export const RightSidebar = ({
                     </div>
                 </div>
             )}
-            <div className="mb-4">
+            <div className="mb-4 hidden lg:block">
                 <h3 className="text-sm font-medium text-amber-200 mb-2">Captured Pieces</h3>
-                <div className="space-y-2">
-                    <div>
-                        <div className="flex items-center gap-1 mb-1">
-                            <span className="text-xs text-stone-400">White ({getTotalPoints(capturedPieces.white)}pts):</span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={reviveSectionColor === PlayerColors.WHITE ? onOpenZombieRevive : undefined}
-                            className={`flex flex-wrap gap-0.5 min-h-[28px] w-full text-left ${
-                                reviveSectionColor === PlayerColors.WHITE && onOpenZombieRevive
-                                    ? 'hover:bg-stone-700/50 rounded-md p-1 -m-1'
-                                    : ''
-                            }`}
-                        >
-                            {sortedCaptured(capturedPieces.white).map((piece, i) => (
-                                <span key={i} className="text-lg">
-                                    {PIECE_SYMBOLS[piece.color][piece.type]}
-                                </span>
-                            ))}
-                        </button>
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-1 mb-1">
-                            <span className="text-xs text-stone-400">Black ({getTotalPoints(capturedPieces.black)}pts):</span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={reviveSectionColor === PlayerColors.BLACK ? onOpenZombieRevive : undefined}
-                            className={`flex flex-wrap gap-0.5 min-h-[28px] w-full text-left ${
-                                reviveSectionColor === PlayerColors.BLACK && onOpenZombieRevive
-                                    ? 'hover:bg-stone-700/50 rounded-md p-1 -m-1'
-                                    : ''
-                            }`}
-                        >
-                            {sortedCaptured(capturedPieces.black).map((piece, i) => (
-                                <span key={i} className="text-lg">
-                                    {PIECE_SYMBOLS[piece.color][piece.type]}
-                                </span>
-                            ))}
-                        </button>
-                    </div>
-                </div>
+                <CapturedPiecesContent
+                    capturedPieces={capturedPieces}
+                    currentPlayer={reviveSectionColor}
+                    onOpenZombieRevive={onOpenZombieRevive}
+                />
             </div>
 
        

@@ -6,7 +6,7 @@ import { Board3D } from "./components/Board3D";
 import { TopMenu } from "./components/TopMenu";
 import { GameSettingsModal } from "./components/GameSettingsModal";
 import { BottomMenu } from "./components/BottomMenu";
-import { RightSidebar } from "./components/RightSidebar";
+import { RightSidebar, CapturedPieces } from "./components/RightSidebar";
 import { GameResultModal } from "./components/GameResultModal";
 import { MysteryBoxReviveModal } from "./components/MysteryBoxReviveModal";
 import { ZombieReviveModal } from "./components/ZombieReviveModal";
@@ -252,6 +252,10 @@ export const Game = () => {
           <div className="flex flex-col items-center">
             <div className="mb-2 w-full max-w-2xl">
               <TopMenu onOpenSettings={() => setIsSettingsOpen(true)} />
+            </div>
+
+            <div className="w-full lg:hidden mb-2">
+              <CapturedPieces onOpenZombieRevive={openZombieRevive} />
             </div>
 
             {is3D ? (
