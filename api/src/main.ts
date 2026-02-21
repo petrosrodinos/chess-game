@@ -15,7 +15,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const enabledCors = process.env.NODE_ENV && process.env.NODE_ENV !== 'local' ? [process.env.APP_URL] : ['*'];
+  const enabledCors = process.env.NODE_ENV && process.env.NODE_ENV !== 'local' ? [process.env.APP_URL, process.env.DEV_APP_URL] : ['*'];
 
   app.enableCors({
     origin: enabledCors,
