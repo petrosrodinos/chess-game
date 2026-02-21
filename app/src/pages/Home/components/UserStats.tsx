@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { Trophy, Crown, Target, Award } from "lucide-react";
 import { useAuthStore } from "../../../store/authStore";
-import { getStatsData } from "../../../lib/level";
+import { getStatsData, getPointsForLevel } from "../../../lib/level";
+import { MAX_LEVEL } from "../../../constants/game";
+import { Modal } from "../../../components/Modal";
 
 const mockUserPoints = 826;
 const mockWins = 42;
@@ -11,17 +14,25 @@ const mockLevel = 8;
 
 const { progress, tier, pointsToNextLevel } = getStatsData(mockUserPoints, mockLevel);
 
+const LEVELS = Array.from({ length: MAX_LEVEL }, (_, i) => i + 1);
+
 export const UserStats = () => {
   const username = useAuthStore((state) => state.username);
+  const [levelModalOpen, setLevelModalOpen] = useState(false);
+
   return (
     <div className="bg-stone-800/60 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-stone-700/50">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <div className="relative pb-5">
+          <button
+            type="button"
+            onClick={() => setLevelModalOpen(true)}
+            className="relative pb-5 cursor-pointer rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          >
             <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${tier.gradient} flex items-center justify-center shadow-lg ring-2 ${tier.ring}`}>
               <span className="text-2xl font-black text-white drop-shadow-sm">{mockLevel}</span>
             </div>
-          </div>
+          </button>
           <div className="mb-5">
             <h2 className="text-2xl font-bold text-amber-400">{username}</h2>
             <div className="w-24 h-1.5 bg-stone-700 rounded-full overflow-hidden">
@@ -68,6 +79,28 @@ export const UserStats = () => {
           <p className="text-stone-400 text-xs">Win Rate</p>
         </div>
       </div>
+
+      <Modal isOpen={levelModalOpen} onClose={() => setLevelModalOpen(false)} title="Levels">
+        <ul className="space-y-1 max-h-[60vh] overflow-y-auto">
+          {LEVELS.map((level) => {
+            const points = getPointsForLevel(level);
+            const isUserLevel = level === mockLevel;
+            return (
+              <li
+                key={level}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg ${isUserLevel ? "bg-amber-500/20 border border-amber-400/50" : "bg-stone-900/50 border border-transparent"}`}
+              >
+                <span className={isUserLevel ? "font-bold text-amber-400" : "text-stone-300"}>
+                  Level {level}{isUserLevel ? " (you)" : ""}
+                </span>
+                <span className={isUserLevel ? "font-semibold text-amber-400" : "text-stone-400"}>
+                  {points.toLocaleString()} pts
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Modal>
     </div>
   );
 };

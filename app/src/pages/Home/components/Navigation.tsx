@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 import { environments } from "../../../config/environments";
 import { SettingsModal } from "./SettingsModal";
-import { ConfirmationDialog } from "./ConfirmationDialog";
+import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
 
 export const Navigation = () => {
   const navigate = useNavigate();
