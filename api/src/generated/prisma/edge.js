@@ -39,12 +39,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 7.2.0
- * Query Engine version: 0c8ef2ce45c83248ab3df073180d5eda9e8be7a3
+ * Prisma Client JS version: 7.3.0
+ * Query Engine version: 9d6ad21cbbceab97458517b147a6a09ff43aa735
  */
 Prisma.prismaVersion = {
-  client: "7.2.0",
-  engine: "0c8ef2ce45c83248ab3df073180d5eda9e8be7a3"
+  client: "7.3.0",
+  engine: "9d6ad21cbbceab97458517b147a6a09ff43aa735"
 }
 
 Prisma.PrismaClientKnownRequestError = PrismaClientKnownRequestError;
@@ -95,12 +95,41 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   uuid: 'uuid',
+  username: 'username',
   email: 'email',
-  phone: 'phone',
   password: 'password',
   role: 'role',
+  date_of_birth: 'date_of_birth',
   created_at: 'created_at',
   updated_at: 'updated_at'
+};
+
+exports.Prisma.UserStatsScalarFieldEnum = {
+  id: 'id',
+  user_uuid: 'user_uuid',
+  rank: 'rank',
+  level: 'level',
+  points: 'points',
+  wins: 'wins',
+  losses: 'losses',
+  draws: 'draws',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.GameScalarFieldEnum = {
+  id: 'id',
+  uuid: 'uuid',
+  user_uuid: 'user_uuid',
+  code: 'code',
+  board_size: 'board_size',
+  mode: 'mode',
+  status: 'status',
+  time: 'time',
+  moves: 'moves',
+  points: 'points',
+  created_at: 'created_at',
+  finished_at: 'finished_at'
 };
 
 exports.Prisma.SortOrder = {
@@ -117,6 +146,18 @@ exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
+exports.GameMode = exports.$Enums.GameMode = {
+  SINGLE: 'SINGLE',
+  OFFLINE: 'OFFLINE',
+  ONLINE: 'ONLINE'
+};
+
+exports.GameStatus = exports.$Enums.GameStatus = {
+  WIN: 'WIN',
+  LOSS: 'LOSS',
+  DRAW: 'DRAW'
+};
+
 exports.AuthRole = exports.$Enums.AuthRole = {
   USER: 'USER',
   ADMIN: 'ADMIN',
@@ -125,28 +166,31 @@ exports.AuthRole = exports.$Enums.AuthRole = {
 };
 
 exports.Prisma.ModelName = {
-  User: 'User'
+  User: 'User',
+  UserStats: 'UserStats',
+  Game: 'Game'
 };
 /**
  * Create the Client
  */
 const config = {
   "previewFeatures": [],
-  "clientVersion": "7.2.0",
-  "engineVersion": "0c8ef2ce45c83248ab3df073180d5eda9e8be7a3",
+  "clientVersion": "7.3.0",
+  "engineVersion": "9d6ad21cbbceab97458517b147a6a09ff43aa735",
   "activeProvider": "postgresql",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client-js\"\n  output   = \"../src/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nmodel User {\n  id       Int     @id @default(autoincrement())\n  uuid     String  @unique @default(uuid())\n  email    String  @unique\n  phone    String? @unique\n  password String\n\n  role       AuthRole\n  created_at DateTime @default(now())\n  updated_at DateTime @updatedAt\n\n  @@index([email])\n  @@index([phone])\n  @@index([uuid])\n  @@map(\"users\")\n}\n\nenum AuthRole {\n  USER\n  ADMIN\n  SUPER_ADMIN\n  SUPPORT\n}\n"
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client-js\"\n  output   = \"../src/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nmodel User {\n  id            Int       @id @default(autoincrement())\n  uuid          String    @unique @default(uuid())\n  username      String    @unique\n  email         String    @unique\n  password      String\n  role          AuthRole\n  date_of_birth DateTime?\n  created_at    DateTime  @default(now())\n  updated_at    DateTime  @updatedAt\n\n  stats UserStats?\n  games Game[]\n\n  @@index([email])\n  @@index([uuid])\n  @@map(\"users\")\n}\n\nmodel UserStats {\n  id         Int      @id @default(autoincrement())\n  user_uuid  String   @unique\n  rank       Int      @default(0)\n  level      Int      @default(1)\n  points     Int      @default(0)\n  wins       Int      @default(0)\n  losses     Int      @default(0)\n  draws      Int      @default(0)\n  created_at DateTime @default(now())\n  updated_at DateTime @updatedAt\n  user       User     @relation(fields: [user_uuid], references: [uuid], onDelete: Cascade)\n\n  @@map(\"user_stats\")\n}\n\nmodel Game {\n  id          Int        @id @default(autoincrement())\n  uuid        String     @unique @default(uuid())\n  user_uuid   String\n  code        String\n  board_size  String\n  mode        GameMode\n  status      GameStatus\n  time        Int?\n  moves       Int        @default(0)\n  points      Int        @default(0)\n  created_at  DateTime   @default(now())\n  finished_at DateTime?\n  user        User       @relation(fields: [user_uuid], references: [uuid], onDelete: Cascade)\n\n  @@index([uuid])\n  @@index([user_uuid])\n  @@map(\"games\")\n}\n\nenum GameMode {\n  SINGLE\n  OFFLINE\n  ONLINE\n}\n\nenum GameStatus {\n  WIN\n  LOSS\n  DRAW\n}\n\nenum AuthRole {\n  USER\n  ADMIN\n  SUPER_ADMIN\n  SUPPORT\n}\n"
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"uuid\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"phone\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"enum\",\"type\":\"AuthRole\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":\"users\"}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"uuid\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"username\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"enum\",\"type\":\"AuthRole\"},{\"name\":\"date_of_birth\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"stats\",\"kind\":\"object\",\"type\":\"UserStats\",\"relationName\":\"UserToUserStats\"},{\"name\":\"games\",\"kind\":\"object\",\"type\":\"Game\",\"relationName\":\"GameToUser\"}],\"dbName\":\"users\"},\"UserStats\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"user_uuid\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"rank\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"level\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"points\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"wins\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"losses\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"draws\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"UserToUserStats\"}],\"dbName\":\"user_stats\"},\"Game\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"uuid\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user_uuid\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"code\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"board_size\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"mode\",\"kind\":\"enum\",\"type\":\"GameMode\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"GameStatus\"},{\"name\":\"time\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"moves\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"points\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"finished_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"GameToUser\"}],\"dbName\":\"games\"}},\"enums\":{},\"types\":{}}")
 defineDmmfProperty(exports.Prisma, config.runtimeDataModel)
 config.compilerWasm = {
-  getRuntime: async () => require('./query_compiler_bg.js'),
+  getRuntime: async () => require('./query_compiler_fast_bg.js'),
   getQueryCompilerWasmModule: async () => {
     const loader = (await import('#wasm-compiler-loader')).default
     const compiler = (await loader).default
     return compiler
-  }
+  },
+  importName: './query_compiler_fast_bg.js',
 }
 if (typeof globalThis !== 'undefined' && globalThis['DEBUG'] || (typeof process !== 'undefined' && process.env && process.env.DEBUG) || undefined) {
   Debug.enable(typeof globalThis !== 'undefined' && globalThis['DEBUG'] || (typeof process !== 'undefined' && process.env && process.env.DEBUG) || undefined)

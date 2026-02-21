@@ -24,12 +24,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 7.2.0
- * Query Engine version: 0c8ef2ce45c83248ab3df073180d5eda9e8be7a3
+ * Prisma Client JS version: 7.3.0
+ * Query Engine version: 9d6ad21cbbceab97458517b147a6a09ff43aa735
  */
 Prisma.prismaVersion = {
-  client: "7.2.0",
-  engine: "0c8ef2ce45c83248ab3df073180d5eda9e8be7a3"
+  client: "7.3.0",
+  engine: "9d6ad21cbbceab97458517b147a6a09ff43aa735"
 }
 
 Prisma.PrismaClientKnownRequestError = () => {
@@ -123,12 +123,41 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   uuid: 'uuid',
+  username: 'username',
   email: 'email',
-  phone: 'phone',
   password: 'password',
   role: 'role',
+  date_of_birth: 'date_of_birth',
   created_at: 'created_at',
   updated_at: 'updated_at'
+};
+
+exports.Prisma.UserStatsScalarFieldEnum = {
+  id: 'id',
+  user_uuid: 'user_uuid',
+  rank: 'rank',
+  level: 'level',
+  points: 'points',
+  wins: 'wins',
+  losses: 'losses',
+  draws: 'draws',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.GameScalarFieldEnum = {
+  id: 'id',
+  uuid: 'uuid',
+  user_uuid: 'user_uuid',
+  code: 'code',
+  board_size: 'board_size',
+  mode: 'mode',
+  status: 'status',
+  time: 'time',
+  moves: 'moves',
+  points: 'points',
+  created_at: 'created_at',
+  finished_at: 'finished_at'
 };
 
 exports.Prisma.SortOrder = {
@@ -152,8 +181,22 @@ exports.AuthRole = exports.$Enums.AuthRole = {
   SUPPORT: 'SUPPORT'
 };
 
+exports.GameMode = exports.$Enums.GameMode = {
+  SINGLE: 'SINGLE',
+  OFFLINE: 'OFFLINE',
+  ONLINE: 'ONLINE'
+};
+
+exports.GameStatus = exports.$Enums.GameStatus = {
+  WIN: 'WIN',
+  LOSS: 'LOSS',
+  DRAW: 'DRAW'
+};
+
 exports.Prisma.ModelName = {
-  User: 'User'
+  User: 'User',
+  UserStats: 'UserStats',
+  Game: 'Game'
 };
 
 /**
