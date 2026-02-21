@@ -2,12 +2,12 @@ import { Trophy, Crown, Target, Award } from "lucide-react";
 import { useAuthStore } from "../../../store/authStore";
 import { getStatsData } from "../../../lib/level";
 
-const mockUserPoints = 8250;
+const mockUserPoints = 826;
 const mockWins = 42;
 const mockLosses = 28;
 const mockWinRate = 60;
 const mockUserRank = 6;
-const mockLevel = 9;
+const mockLevel = 8;
 
 const { progress, tier, pointsToNextLevel } = getStatsData(mockUserPoints, mockLevel);
 
